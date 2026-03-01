@@ -421,9 +421,8 @@ BEGIN
 END Enumerate;
 
 (* FindFile - finds a file *)
-PROCEDURE Upper(s: ARRAY OF CHAR): Filename;
-VAR res: Filename;
- p, l: LONGINT;
+PROCEDURE Upper(s: ARRAY OF CHAR; VAR res: Filename);
+VAR p, l: LONGINT;
  dummy: BOOLEAN;
 BEGIN
  p := 0; l := LEN(s);
@@ -433,7 +432,6 @@ BEGIN
   INC(p);
  END;
  res[p] := 0X;
- RETURN res
 END Upper;
 
 PROCEDURE ToUpper(VAR s: ARRAY OF CHAR);
@@ -450,9 +448,9 @@ PROCEDURE FindFileHandler(p: OFSFATVolumes.Param; VAR continue: BOOLEAN);
 VAR cmpName, cmpLong: Filename; (* compiler traps if the use of 'cmpXXX' is replaced by its definition *)
 BEGIN
  WITH p: FindParam DO
-   cmpName := Upper(p.name);
+   Upper(p.name, cmpName);
    IF p.casesensitive THEN cmpLong := p.direntry.long
-   ELSE cmpLong := Upper(p.direntry.long) 
+   ELSE Upper(p.direntry.long, cmpLong) 
   END;
   IF ((p.casesensitive & (p.name = cmpLong)) OR (~p.casesensitive & (cmpName = cmpLong)) OR (cmpName = p.direntry.short)) &
    (p.flags * p.direntry.attr = p.flags)
@@ -465,9 +463,8 @@ BEGIN
  END
 END FindFileHandler;
 
-PROCEDURE NextPart(VAR n: ARRAY OF CHAR; VAR flags: SET): Filename;
-VAR res: Filename;
- p, k: LONGINT;
+PROCEDURE NextPart(VAR n: ARRAY OF CHAR; VAR flags: SET; VAR res: Filename);
+VAR p, k: LONGINT;
 BEGIN
  p := 0;
  IF (n[p] = "/") OR (n[p] = "\") THEN
@@ -495,7 +492,6 @@ BEGIN
   res[p-1] := 0X; (* force 0X at the end of the string *)
   n[0] := 0X
  END;
- RETURN res
 END NextPart;
 
 PROCEDURE FindFile(fs: OFS.FileSystem; name: ARRAY OF CHAR): File;
@@ -512,17 +508,17 @@ BEGIN
    (* find directory *)
    fp.matched := TRUE;
    IF (path # "") THEN
-    fp.name := NextPart(path, fp.flags);
+    NextPart(path, fp.flags, fp.name);
     IF (fp.name = "/") OR (fp.name = "\") THEN 
      fp.file.direntry.cluster := 0; 
-     fp.name := NextPart(path, fp.flags)
+     NextPart(path, fp.flags, fp.name)
     ELSE fp.file.direntry.cluster := fs(FileSystem).currentDirCluster
     END;
     fp.file.direntry.attr := { faDirectory };
     WHILE (fp.name # "") DO
      fp.matched := FALSE;
      OFSFATVolumes.EnumerateDirectory(fs.vol(OFSFATVolumes.Volume), fp.file.direntry.cluster, FindFileHandler, fp);
-     IF fp.matched THEN fp.name := NextPart(path, fp.flags)
+     IF fp.matched THEN NextPart(path, fp.flags, fp.name)
      ELSE fp.name := "" (* no need to look any further *)
      END
     END
@@ -752,8 +748,9 @@ END GetBlockAddress;
 (** ReadBytes - read n bytes from a file. r.res indicates the number of bytes that could not be read *)
 PROCEDURE ReadBytes(VAR r: OFS.Rider; VAR x: ARRAY OF SYSTEM.BYTE; n: LONGINT);
 VAR adr, src, dst, m: LONGINT;
- data: ARRAY r.fs.vol(OFSFATVolumes.Volume).bpb.BytesPerCluster OF CHAR;
+ data: POINTER TO ARRAY OF CHAR;
 BEGIN
+ NEW(data, r.fs.vol(OFSFATVolumes.Volume).bpb.BytesPerCluster);
  IF Detail THEN 
   Kernel.WriteString(moduleName); Kernel.WriteString("reading "); Kernel.WriteInt(n, 0); 
   Kernel.WriteString(" bytes from "); Kernel.WriteString(r.file(File).direntry.long); Kernel.WriteLn
@@ -788,8 +785,9 @@ END ReadBytes;
 PROCEDURE WriteBytes(VAR r: OFS.Rider; VAR x: ARRAY OF SYSTEM.BYTE; n: LONGINT);
 VAR res, src, dst, adr, len: LONGINT;
  f: File;
- data: ARRAY r.fs.vol(OFSFATVolumes.Volume).bpb.BytesPerCluster OF CHAR;
+ data: POINTER TO ARRAY OF CHAR;
 BEGIN
+ NEW(data, r.fs.vol(OFSFATVolumes.Volume).bpb.BytesPerCluster);
  IF Detail THEN 
   Kernel.WriteString(moduleName); Kernel.WriteString("writing "); Kernel.WriteInt(n, 0); 
   Kernel.WriteString(" bytes to "); Kernel.WriteString(r.file(File).direntry.long); Kernel.WriteLn
@@ -858,9 +856,9 @@ END Registered;
 (** Auxiliary File Handling *)
 
 (** GetFileDescriptor - returns the descriptor of a file *)
-PROCEDURE GetFileDescriptor*(f: File): OFSFATVolumes.DirEntry;
+PROCEDURE GetFileDescriptor*(f: File; VAR res: OFSFATVolumes.DirEntry);
 BEGIN
- RETURN f.direntry;
+ res := f.direntry;
 END GetFileDescriptor;
 
 (** GetFileAttr - returns the attributes of a file *)
@@ -929,15 +927,15 @@ BEGIN
  IF (fs.fopen # NIL) THEN
   c := fs.fopen;
   IF ignoreCase THEN 
-   name := Upper(name);
-   hack := Upper(c.file.direntry.long);
+   Upper(name, name);
+   Upper(c.file.direntry.long, hack);
   ELSE hack := c.file.direntry.long
   END;
   
   WHILE (c # NIL) & ((hack # name) OR (c.file.direntry.dirInfo.dirCluster # dircluster)) DO
    c := c.next;
    IF (c # NIL) THEN 
-    IF ignoreCase THEN hack := Upper(c.file.direntry.long)
+    IF ignoreCase THEN Upper(c.file.direntry.long, hack)
     ELSE hack := c.file.direntry.long 
     END
    END
@@ -1031,11 +1029,11 @@ BEGIN
   NEW(fp.file);
   
   (* find existing part of directory path *)
-  fp.name := NextPart(path, fp.flags);
+  NextPart(path, fp.flags, fp.name);
   fp.matched := TRUE;
   IF (fp.name = "/") OR (fp.name = "\") THEN 
    fp.file.direntry.cluster := 0; (*fs.vol(OFSFATVolumes.Volume).bpb.RootClus;*)
-   fp.name := NextPart(path, fp.flags)
+   NextPart(path, fp.flags, fp.name)
   ELSE fp.file.direntry.cluster := fs.currentDirCluster
   END;
   fp.matched := TRUE;
@@ -1043,7 +1041,7 @@ BEGIN
   WHILE fp.matched & (fp.name # "") DO
    fp.matched := FALSE;
    OFSFATVolumes.EnumerateDirectory(fs.vol(OFSFATVolumes.Volume), fp.file.direntry.cluster, FindFileHandler, fp);
-   IF fp.matched THEN fp.name := NextPart(path, fp.flags); parentDir := fp.direntry.cluster
+   IF fp.matched THEN NextPart(path, fp.flags, fp.name); parentDir := fp.direntry.cluster
    END
   END;
   
@@ -1052,7 +1050,7 @@ BEGIN
    WHILE (fp.name # "") & ValidName(fp.name) DO
     (* create directory *)
     parentDir := OFSFATVolumes.CreateDirectory(fs.vol(OFSFATVolumes.Volume), parentDir, fp.name);
-    IF (parentDir # OFSFATVolumes.BAD) THEN fp.name := NextPart(path, fp.flags)
+    IF (parentDir # OFSFATVolumes.BAD) THEN NextPart(path, fp.flags, fp.name)
     ELSE fp.name := ""
     END
    END

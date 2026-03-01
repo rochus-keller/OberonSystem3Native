@@ -506,7 +506,7 @@ BEGIN
    OFS.JoinName(fs.prefix, filename, filename);
    f := Files.Old(filename);
    IF (f # NIL) & (f.fs IS OFSFATFiles.FileSystem) THEN
-    de := OFSFATFiles.GetFileDescriptor(f(OFSFATFiles.File));
+    OFSFATFiles.GetFileDescriptor(f(OFSFATFiles.File), de);
     Str(w, "File Handle of "); Str(w, filename); Ln(w);
     PrintFileInfo(w, f.key, de)
    ELSE Str(w, "Can not open "); Str(w, filename);
@@ -534,7 +534,7 @@ BEGIN
    OFS.JoinName(fs.prefix, filename, filename);
    f := Files.Old(filename);
    IF (f # NIL) & (f.fs IS OFSFATFiles.FileSystem) THEN
-    de := OFSFATFiles.GetFileDescriptor(f(OFSFATFiles.File));
+    OFSFATFiles.GetFileDescriptor(f(OFSFATFiles.File), de);
     Files.Close(f);
     Str(w, "File Handle of "); Str(w, filename); Ln(w);
     PrintFileInfo(w, f.key, de);
@@ -702,7 +702,7 @@ BEGIN
     IF (n > 0) & (fe.name[n-1] = "/") THEN fe.name[n-1] := 0X; DEC(n) END;
     f := Files.Old(fe.name);
     IF (f # NIL) THEN
-     handle := OFSFATFiles.GetFileDescriptor(f(OFSFATFiles.File));
+     OFSFATFiles.GetFileDescriptor(f(OFSFATFiles.File), handle);
      IF ~((OFSFATFiles.faDirectory IN handle.attr) & ((handle.long = ".") OR (handle.long = ".."))) THEN (* skip "." and ".." *)
       cluster := handle.cluster; count := 0; 
       expected := (handle.size + vol.bpb.BytesPerCluster-1) DIV vol.bpb.BytesPerCluster;

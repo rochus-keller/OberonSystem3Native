@@ -82,11 +82,11 @@ END SetIRQs;
 
 (** Get the base addresses and the IRQ numbers of the installed serial ports. *)
 PROCEDURE GetIRQs*;
-VAR p: LONGINT;
+VAR p: LONGINT; a: ARRAY 10 OF CHAR;
 
  (* Write a hexadecimal representation of x *)
- PROCEDURE Hex (x: LONGINT): ARRAY OF CHAR;
-    VAR i, y: LONGINT; a: ARRAY 10 OF CHAR;
+ PROCEDURE Hex (x: LONGINT; VAR a: ARRAY OF CHAR);
+    VAR i, y: LONGINT;
    BEGIN
   COPY("      ", a);
   i := 6;
@@ -95,14 +95,14 @@ VAR p: LONGINT;
        x := x DIV 10H; DEC(i)
      UNTIL i = 3;
   a[7] := "H"; a[8] := 0X;
-     RETURN a
  END Hex;
 
 BEGIN
  Texts.WriteString(W, "Serial port addr. & IRQs     COM1      COM2      COM3      COM4"); Texts.WriteLn(W);
  Texts.WriteString(W, "         ConfigV24.SetIRQs");
  FOR p := 0 TO 3 DO
-  Texts.WriteString(W, Hex(V24.portBase[p])); Texts.WriteInt(W, V24.irq[p], 3)
+  Hex(V24.portBase[p],a);
+  Texts.WriteString(W, a); Texts.WriteInt(W, V24.irq[p], 3)
  END;
  Texts.WriteString(W, " ~");
  Texts.WriteLn(W);
@@ -113,4 +113,4 @@ BEGIN
  Texts.OpenWriter(W)
 END ConfigV24.
 
-ConfigV24.GetIRQs
+(* ConfigV24.GetIRQs *)

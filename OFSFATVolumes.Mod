@@ -691,8 +691,9 @@ END CheckDiskette;
 
 (* ReadBPB - reads the BIOS parameter block of partition 'vol.part' from 'vol.dev' and fills the 'vol.bpb' parameter *)
 PROCEDURE ReadBPB(vol: Volume): BOOLEAN;
-VAR b: ARRAY vol.blockSize OF CHAR; TotSec, DataSec: LONGINT;
+VAR b: POINTER TO ARRAY OF CHAR; TotSec, DataSec: LONGINT;
 BEGIN
+ NEW(b, vol.blockSize);
  GetBlock(vol, 0, b);
  GetCharacters(b, 0, vol.bpb.jmpBoot, 3);
  GetCharacters(b, 3, vol.bpb.OEMName, 8); vol.bpb.OEMName[8] := 0X;
@@ -769,8 +770,9 @@ END ReadBPB;
 
 (* ReadFSInfoSector - reads the FSInfo sector (FAT32 volumes only) *)
 PROCEDURE ReadFSInfoSector(vol: Volume);
-VAR b: ARRAY vol.blockSize OF CHAR;
+VAR b: POINTER TO ARRAY OF CHAR;
 BEGIN
+ NEW(b, vol.blockSize);
  IF (vol.bpb.FATType = FAT32) THEN
   vol.GetBlock(vol, -vol.bpb.FSInfoSec, b);
   IF (GetLongint(b, 0) = fsiLeadSig) & (GetLongint(b, 484) = fsiStrucSig) & (GetLongint(b, 508) = fsiTrailSig) THEN
@@ -785,8 +787,9 @@ END ReadFSInfoSector;
 
 (* WriteFSInfoSector - writes the FSInfo sector (FAT32 volumes only) *)
 PROCEDURE WriteFSInfoSector(vol: Volume);
-VAR b: ARRAY vol.blockSize OF CHAR;
+VAR b: POINTER TO ARRAY OF CHAR;
 BEGIN
+ NEW(b, vol.blockSize);
  IF (vol.bpb.FATType = FAT32) THEN
   vol.GetBlock(vol, -vol.bpb.FSInfoSec, b);
   IF (GetLongint(b, 0) = fsiLeadSig) & (GetLongint(b, 484) = fsiStrucSig) & (GetLongint(b, 508) = fsiTrailSig) THEN
@@ -805,8 +808,9 @@ END IsOberonBootDisk;
 (* IsOberonFileSystem - checks if a 'FAT12' file system has the first byte of the root directory set to 0FFX.
  This method is used in Diskette.OpenVol to determine if a floppy disk contains an Oberon file system *)
 PROCEDURE IsOberonFileSystem(vol: Volume): BOOLEAN;
-VAR buf: ARRAY vol.blockSize OF CHAR; dirStart: LONGINT;
+VAR buf: POINTER TO ARRAY OF CHAR; dirStart: LONGINT;
 BEGIN
+ NEW(buf, vol.blockSize);
  IF (vol.bpb.FATType = FAT12) THEN
   dirStart := vol.bpb.RsvdSecCnt + (vol.bpb.NumFATs * vol.bpb.FATSz16);
   GetBlock(vol, -dirStart, buf);
@@ -856,9 +860,10 @@ END WriteVolumeFlags;
 
 (** GetFATEntry - reads an entry at index 'cluster' from the active FAT *)
 PROCEDURE GetFATEntry*(vol: Volume; cluster: LONGINT): LONGINT;
-VAR data: ARRAY vol.blockSize OF CHAR; unsafe: BOOLEAN; FAT12Buffer: ARRAY 2 OF CHAR;
+VAR data: POINTER TO ARRAY OF CHAR; unsafe: BOOLEAN; FAT12Buffer: ARRAY 2 OF CHAR;
  FATOffset, ThisFATSecNum, ThisFATEntOffset, res: LONGINT;
 BEGIN
+ NEW(data, vol.blockSize);
  unsafe := vol.unsafe; vol.unsafe := FALSE;
  IF (cluster = EOC) OR (cluster = BAD) OR (~unsafe & ((cluster < 2) OR (cluster > vol.bpb.CountOfClusters+1))) THEN
   Kernel.WriteInt(cluster, 0); ErrorMsg(": bad cluster number"); SYSTEM.HALT(15)
@@ -920,9 +925,10 @@ END GetFATEntry;
 
 (** PutFATEntry - writes 'link' to entry 'cluster' into the active FAT or all FATs if they are mirrored at runtime *)
 PROCEDURE PutFATEntry*(vol: Volume; cluster, link: LONGINT);
-VAR data: ARRAY vol.blockSize OF CHAR; unsafe: BOOLEAN; FAT12Buffer: ARRAY 2 OF CHAR;
+VAR data: POINTER TO ARRAY OF CHAR; unsafe: BOOLEAN; FAT12Buffer: ARRAY 2 OF CHAR;
  FATOffset, ThisFATSecNum, ThisFATEntOffset, fatIdx, res: LONGINT;
 BEGIN
+ NEW(data, vol.blockSize);
  unsafe := vol.unsafe; vol.unsafe := FALSE;
  IF (cluster = BAD) OR (~unsafe & ((cluster < 2) OR (cluster > vol.bpb.CountOfClusters+1)) OR 
   (~unsafe & (link # FREE) & (link # EOC) & ((link < 2) OR (link > vol.bpb.CountOfClusters+1)))) THEN 
@@ -1064,8 +1070,9 @@ END GetNextSector;
 (** Directory Enumeration *)
 
 PROCEDURE GetDirectoryCluster*(vol: Volume; directory: LONGINT; cluster: LONGINT; VAR data: ARRAY OF CHAR): LONGINT;
-VAR firstSector, lastSector, sector, i, k, j: LONGINT; block: ARRAY vol.blockSize OF CHAR;
+VAR firstSector, lastSector, sector, i, k, j: LONGINT; block: POINTER TO ARRAY OF CHAR;
 BEGIN
+ NEW(block, vol.blockSize);
  IF (directory = 0) & (vol.bpb.FATType # FAT32) THEN (* root directory of FAT12/16 *)
   firstSector := vol.bpb.RsvdSecCnt + (vol.bpb.NumFATs * vol.bpb.FATSz16);
   lastSector := firstSector + vol.bpb.RootEntCnt DIV (vol.blockSize DIV DirEntrySize) - 1;
@@ -1094,8 +1101,9 @@ BEGIN
 END GetDirectoryCluster;
 
 PROCEDURE PutDirectoryCluster(vol: Volume; directory, cluster: LONGINT; VAR data: ARRAY OF CHAR): LONGINT;
-VAR firstSector, lastSector, sector, i, k, j: LONGINT; block: ARRAY vol.blockSize OF CHAR;
+VAR firstSector, lastSector, sector, i, k, j: LONGINT; block: POINTER TO ARRAY OF CHAR;
 BEGIN
+ NEW(data, vol.blockSize);
  IF (directory = 0) & (vol.bpb.FATType # FAT32) THEN (* root directory of FAT12/16 *)
   firstSector := vol.bpb.RsvdSecCnt + (vol.bpb.NumFATs * vol.bpb.FATSz16);
   lastSector := firstSector + vol.bpb.RootEntCnt DIV (vol.blockSize DIV DirEntrySize) - 1;
@@ -1274,8 +1282,9 @@ END ProcessDirectoryCluster;
 (* EnumerateDirectory - enumerates the contens of a directory identified by its first cluster *)
 PROCEDURE EnumerateDirectory*(vol: Volume; directory: LONGINT; handler: EnumDirHandler; param: Param);
 VAR direntry: DirEntry; cluster, dirCluster, nextCluster: LONGINT; longidx: INTEGER; continue, lastFree: BOOLEAN;
- chksum: CHAR; data: ARRAY vol.clusterSize OF CHAR; dirCache: DirCache;
+ chksum: CHAR; data: POINTER TO ARRAY OF CHAR; dirCache: DirCache;
 BEGIN
+ NEW(data, vol.clusterSize);
  IF Trace THEN
   Kernel.WriteString(moduleName); Kernel.WriteString("EnumerateDirectory "); Kernel.WriteInt(directory, 0); 
   Kernel.WriteLn
@@ -1544,8 +1553,9 @@ END GetShortName;
 (** RemoveDirectoryEntry - removes an existing directory entry from the FAT.
  The logical entry may span several physical entries *)
 PROCEDURE RemoveDirectoryEntry*(vol: Volume; VAR direntry: DirEntry; VAR res: INTEGER);
-VAR cluster, dummy, nextCluster, pos, i: LONGINT; data: ARRAY vol.clusterSize OF CHAR; p, c: DirCache;
+VAR cluster, dummy, nextCluster, pos, i: LONGINT; data: ARRAY OF CHAR; p, c: DirCache;
 BEGIN
+ NEW(data, vol.clusterSize);
  IF (direntry.dirInfo.cluster # -1) THEN
   cluster := direntry.dirInfo.cluster;
   dummy := GetDirectoryCluster(vol, direntry.dirInfo.dirCluster, cluster, data);
@@ -1586,8 +1596,9 @@ END RemoveDirectoryEntry;
 
 (* AllocateDirectoryCluster - allocates a new cluster for a directory and clears its content *)
 PROCEDURE AllocateDirectoryCluster(vol: Volume; directory, lastCluster: LONGINT; VAR newCluster: LONGINT);
-VAR i, dummy: LONGINT; data: ARRAY vol.clusterSize OF CHAR;
+VAR i, dummy: LONGINT; data: POINTER TO ARRAY OF CHAR;
 BEGIN
+ NEW(data, vol.clusterSize);
  IF (directory = 0) & (vol.bpb.FATType # FAT32) THEN (* root of FAT12/16 *)
   (* no clusters can be allocated, but the contents of the virtual cluster are cleared *)
   dummy := GetDirectoryCluster(vol, directory, lastCluster+1, data);
@@ -1698,13 +1709,13 @@ BEGIN
  FOR k := 0 TO 10 DO data[pos+k] := direntry.short[k] END;
  data[pos+11] := SYSTEM.VAL(CHAR, direntry.attr);
  data[pos+12] := direntry.NTRes;
- ft := TimeOberon2FAT(direntry.creationTime);
+ TimeOberon2FAT(direntry.creationTime, ft);
  data[pos+13] := CHR(ft.tenth);
  PutUnsignedInteger(data, pos+14, ft.time);
  PutUnsignedInteger(data, pos+16, DateOberon2FAT(direntry.creationDate));
  PutUnsignedInteger(data, pos+18, DateOberon2FAT(direntry.accessDate));
  PutUnsignedInteger(data, pos+20, direntry.cluster DIV 10000H); (* bits 31-16 *)
- ft := TimeOberon2FAT(direntry.writeTime);
+ TimeOberon2FAT(direntry.writeTime, ft);
  PutUnsignedInteger(data, pos+22, ft.time);
  PutUnsignedInteger(data, pos+24, DateOberon2FAT(direntry.writeDate));
  PutUnsignedInteger(data, pos+26, direntry.cluster MOD 10000H); (* bits 15-0 *)
@@ -1716,13 +1727,14 @@ END WriteShortEntry;
 (** WriteDirectoryEntry - writes a directory entry 'direntry' back to the volume 'vol'. 'res'=Ok indicates success *)
 PROCEDURE WriteDirectoryEntry*(vol: Volume; VAR direntry: DirEntry; VAR res: INTEGER);
 VAR cluster, d, idx, k, n, pos, t, dummy: LONGINT; unicode: UCSName;
- data: ARRAY vol.clusterSize OF CHAR; chksum: CHAR; dirCache: DirCache; 
+ data: POINTER TO ARRAY OF CHAR; chksum: CHAR; dirCache: DirCache; 
 BEGIN
  (* wp: direntry.long does not collide with existing long names, 
    valid field: direntry.namechanged, direntry.dircluster valid, 
     if ~direntry.namechanged: direntry.num 
     if direntry.sector # -1 then direntry.pos, direntry.NTRes must be valid
  *)
+ NEW(data, vol.clusterSize );
  res := Ok;
    
  IF direntry.namechanged THEN
@@ -1801,8 +1813,9 @@ END WriteDirectoryEntry;
 (** CreateDirectory - creates a directory in the directory specified by 'parentDir' and returns the cluster of the 
  new directory, BAD if unsuccessful *)
 PROCEDURE CreateDirectory*(vol: Volume; parentDir: Address; name: LongName): Address;
-VAR de: DirEntry; cluster, dummy, i, t, d: LONGINT; res: INTEGER; data: ARRAY vol.clusterSize OF CHAR;
+VAR de: DirEntry; cluster, dummy, i, t, d: LONGINT; res: INTEGER; data: POINTER TO ARRAY OF CHAR;
 BEGIN
+ NEW(data, vol.clusterSize);
  IF Trace THEN
   Kernel.WriteString(moduleName); Kernel.WriteString(" creating directory '"); 
   Kernel.WriteString(name); Kernel.WriteChar("'"); Kernel.WriteLn
@@ -1935,12 +1948,10 @@ PROCEDURE TimeFAT2Oberon*(ft: FATTime): LONGINT;
 BEGIN RETURN ft.time DIV 2048 MOD 32 * 4096 + ft.time DIV 32 MOD 64 * 64 + ft.time MOD 32 * 2 + ft.tenth DIV 100
 END TimeFAT2Oberon;
 
-PROCEDURE TimeOberon2FAT*(t: LONGINT): FATTime;
-VAR ft: FATTime;
+PROCEDURE TimeOberon2FAT*(t: LONGINT; VAR ft: FATTime);
 BEGIN 
  ft.time := t DIV 4096 MOD 32 * 2048 + t DIV 64 MOD 64 * 32 + t MOD 64 DIV 2;
  ft.tenth := 100 * SHORT(AND(t, 1) MOD 200);
- RETURN ft
 END TimeOberon2FAT;
 
 (* AND - bitwise AND *)
