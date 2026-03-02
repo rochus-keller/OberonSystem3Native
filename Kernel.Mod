@@ -3,7 +3,11 @@ Refer to the license.txt file provided with this distribution. *)
 
  MODULE Kernel; (** non-portable *) (* rc/ard/nm/jm/jdv/pjm/rml*)
 
-(** Module Kernel is responsible for memory allocation, garbage collection and other run-time support for the Oberon language, as well as interfacing to the underlying machine.  Using features exported from module Kernel may result in an unportable module, as not all Oberon Kernels are the same. This module is of little importance to most Oberon programmers. *)
+(** Module Kernel is responsible for memory allocation, garbage collection and other run-time support for the Oberon language, 
+    as well as interfacing to the underlying machine.  Using features exported from module Kernel may result in an unportable module, 
+    as not all Oberon Kernels are the same. This module is of little importance to most Oberon programmers. *)
+    
+(** adopted to Multiboot compatible bootloader/QEMU, 2026 me@rochus-keller.ch *)
 
 IMPORT SYSTEM;
 
@@ -207,7 +211,6 @@ VAR
  traceConsole*: BOOLEAN; (** trace on console? *)
  shutdown*: LONGINT; (** system shutdown code 0=running, 1=powering off, 2=rebooting *)
  tlpt: LONGINT;
- bioslpt: ARRAY 3 OF INTEGER;
 
   (* heap/GC *)
  memTop, heapTop: ADDRESS;
@@ -252,9 +255,7 @@ VAR
  clockmissed, clockmode, clockints: LONGINT;
  ticks: LONGINT; (* timer ticks since startup *)
  configadr: ADDRESS; (* address of config info *)
- pspeed: LONGINT; (* previous trace speed *)
  pageheap, pageheap0, pageheap1: ADDRESS;
- displayPos: LONGINT;
  kpar: ARRAY 2 OF LONGINT;
  apmofs: ADDRESS;
  powersave: BOOLEAN;
@@ -263,6 +264,8 @@ VAR
  cpuversion, cpufeatures: LONGINT;
  cpuvendor: Vendor;
  cpu: SHORTINT;
+
+ cmdlineBuf: ARRAY 512 OF CHAR; (* Buffer for Multiboot command line *)
 
 (** -- Low-level tracing support -- *)
 
@@ -303,61 +306,21 @@ END Fill4;
 (** WriteChar - Write a character to the trace output (not reentrant). *)
 
 PROCEDURE WriteChar*(c: CHAR);
-VAR status, flags: SET;  adr: LONGINT;
+VAR adr: LONGINT; flags: SET;
 BEGIN
- flags := GetFlags();  SYSTEM.CLI();
- IF traceConsole THEN (* screen tracing on *)
-  IF c = 0DX THEN
-   IF displayPos MOD DisplayWidth # 0 THEN DEC(displayPos, displayPos MOD DisplayWidth) END
-  ELSIF c = 0AX THEN
-   INC(displayPos, DisplayWidth)
-  ELSE
-   SYSTEM.PUT(DisplayBase+displayPos, SYSTEM.VAL(INTEGER, 0700H+ORD(c)));
-   INC(displayPos, 2)
-  END;
-  IF displayPos >= DisplayWidth*DisplayHeight THEN
-   DEC(displayPos, DisplayWidth);
-   Copy4(DisplayBase+DisplayWidth, DisplayBase, (DisplayWidth*(DisplayHeight-1)) DIV 4);
-   Fill4(DisplayBase+DisplayWidth*(DisplayHeight-1), DisplayWidth DIV 4, 07200720H)
-  END;
-   (* move cursor *)
-  SYSTEM.PORTOUT(3D4H, 0EX);
-  SYSTEM.PORTOUT(3D5H, CHR(displayPos DIV 2 DIV 100H));
-  SYSTEM.PORTOUT(3D4H, 0FX);
-  SYSTEM.PORTOUT(3D5H, CHR(displayPos DIV 2 MOD 100H))
- END;
- IF tspeed > 0 THEN (* V24 tracing on *)
-  IF tspeed # pspeed THEN (* init *)
-   SYSTEM.PORTOUT(tbase+3, 80X); (* set speed *)
-   SYSTEM.PORTOUT(tbase+1, CHR(ASH(115200 DIV tspeed, -8)));
-   SYSTEM.PORTOUT(tbase, CHR(115200 DIV tspeed));
-   SYSTEM.PORTOUT(tbase+3, 3X); (* 8N1 *)
-   SYSTEM.PORTOUT(tbase+4, 3X); (* DTR & RTS on *)
-   SYSTEM.PORTOUT(tbase+1, 0X); (* interrupts off *)
-   pspeed := tspeed
-  END;
-  REPEAT (* wait until port is ready to accept a character *)
-   SYSTEM.PORTIN(tbase+5, SYSTEM.VAL(CHAR, status))
-  UNTIL status * {5,6} = {5,6}; (* THR & TSR empty *)
-  SYSTEM.PORTOUT(tbase, c)
- END;
- IF traceBufAdr # 0 THEN (* buffer saving on *)
-  adr := (traceTail+1) MOD traceBufSize;
-  IF adr # traceHead THEN
-   SYSTEM.PUT(traceBufAdr + traceTail, c);
-   traceTail := adr
+  (* 1. Write to Host Console *)
+  SYSTEM.PORTOUT(0E9H, c);
+
+  (* 2. Write to Oberon's internal circular memory buffer for System.Log *)
+  IF traceBufAdr # 0 THEN
+    flags := GetFlags(); SYSTEM.CLI(); (* Protect buffer pointers from traps *)
+    adr := (traceTail+1) MOD traceBufSize;
+    IF adr # traceHead THEN
+      SYSTEM.PUT(traceBufAdr + traceTail, c);
+      traceTail := adr
+    END;
+    SetFlags(flags)
   END
- END;
- IF tlpt > 0 THEN
-  REPEAT
-   SYSTEM.PORTIN(tlpt+1, SYSTEM.VAL(CHAR, status));
-   SYSTEM.PORTIN(tlpt+1, SYSTEM.VAL(CHAR, status))
-  UNTIL 7 IN status;
-  SYSTEM.PORTOUT(tlpt, c);
-  SYSTEM.PORTOUT(tlpt+2, 0DX); SYSTEM.PORTOUT(tlpt+2, 0DX);
-  SYSTEM.PORTOUT(tlpt+2, 0CX)
- END;
- SetFlags(flags)
 END WriteChar;
 
 (** WriteString - Write a string *)
@@ -479,114 +442,6 @@ BEGIN
  (*Bits(" ID,VIP,VIF", s, 19, 3);*)
  WriteChar(")")
 END WriteFlags;
-
-(*
-(* WriteDesc - Write a 8-byte segment descriptor. *)
-
-PROCEDURE WriteDesc(a: LONGINT);
-VAR type, t, t0, t1: LONGINT;  s0, s1: SET;
-BEGIN
- SYSTEM.GET(a, s0);  SYSTEM.GET(a+4, s1);  SYSTEM.GET(a, t0);  SYSTEM.GET(a+4, t1);
- WriteHex(a, 8);  WriteHex(t0, 9);  WriteHex(t1, 9);
- Bits(" P", s1, 15, 1);  Bits(", DPL", s1, 13, 2);  WriteString(", ");
- IF 12 IN s1 THEN (* data/code *)
-  type := 16;
-  IF 22 IN s1 THEN WriteString("32-bit") ELSE WriteString("16-bit") END;
-  IF 11 IN s1 THEN WriteString(" code");  Bits(", CRA", s1, 8, 3)
-  ELSE WriteString(" data");  Bits(", EWA", s1, 8, 3)
-  END;
-  Bits(", avl", s1, 20, 1)
- ELSE
-  type := ASH(t1, -8) MOD 16;
-  CASE type OF
-   0, 8, 10, 13: WriteString("type");  WriteInt(type, 1)
-   |1, 3: WriteString("16-bit TSS");  Bits(", busy", s1, 9, 1)
-   |2: WriteString("LDT")
-   |4: WriteString("16-bit call gate")
-   |5: WriteString("task gate")
-   |6, 14: WriteString("interrupt gate");  Bits(", 32bit", s1, 11, 1)
-   |7, 15: WriteString("trap gate");  Bits(", 32bit", s1, 11, 1)
-   |9, 11: WriteString("32-bit TSS");  Bits(", busy", s1, 9, 1);  Bits(", avl", s1, 20, 1)
-   |12: WriteString("32-bit call gate, params=");  WriteInt(t1 MOD 32, 1)
-  END
- END;
- WriteLn;
- CASE type OF
-  5: WriteString("  tsssel=");  WriteHex(ASH(t0, -16), 8);  WriteLn
-  |6, 7, 12, 14, 15:
-   WriteString("  segsel=");  WriteHex(ASH(t0, -16), 8);
-   WriteString(", ofs=");  WriteHex(SYSTEM.VAL(LONGINT, s1 * {16..31} + s0 * {0..15}), 8);  WriteLn
-  |9, 11, 16:
-   t := SYSTEM.VAL(LONGINT, s1 * {24..31} + SYSTEM.LSH(s1 * {0..7}, 16) + SYSTEM.LSH(s0, -16));
-   WriteString("  base=");  WriteHex(t, 8);
-   t := SYSTEM.VAL(LONGINT, s1 * {16..19} + s0 * {0..16});
-   WriteString(", limit=");  WriteHex(t, 8);
-   IF 23 IN s1 THEN WriteString(" * 4k =");  WriteHex(t * 4096, 9) END;
-   WriteLn
-  ELSE (* skip *)
- END
-END WriteDesc;
-
-PROCEDURE WriteTSS(a: LONGINT);
-VAR t: LONGINT;
- 
- PROCEDURE Val(s: ARRAY OF CHAR; ofs: LONGINT);
- BEGIN
-  SYSTEM.GET(a+ofs, ofs);
-  WriteChar(" ");  WriteString(s);  WriteChar("=");  WriteHex(ofs, 8)
- END Val;
-
-BEGIN
- WriteHex(a, 8);  WriteString(" 32-bit TSS");  Val("LINK", 0);  WriteString(" IOMAP=");
- SYSTEM.GET(a+100, t);  WriteHex(ASH(t, -16) MOD 10000H, 8);  WriteLn;
- Val("CS:", 76);  Val("DS:", 84);  Val("ES:", 72);  Val("SS:", 80);  Val("SS0", 8);  Val("ESP0", 4);  WriteLn;
- Val("EIP", 32);  Val("ESI", 64);  Val("EDI", 68);  Val("ESP", 56);  Val("SS1", 16);  Val("ESP1", 12);  WriteLn;
- Val("EAX", 40);  Val("EBX", 52);  Val("ECX", 44);  Val("EDX", 48);  Val("SS2", 24);  Val("ESP2", 20);  WriteLn;
- Val("EBP", 60);  Val("FS:", 88);  Val("GS:", 92);  Val("LDT", 96);  WriteString(" DTF=");  
- SYSTEM.GET(a+100, t);  WriteHex(t MOD 10000H, 8);  Val("PDBR", 28);  WriteLn;
- SYSTEM.GET(a+36, t);  WriteString(" EFLAGS=");  WriteFlags(t);  WriteLn
-END WriteTSS;
-
-PROCEDURE StoreIDT(adr: LONGINT);
-CODE {SYSTEM.i386}
- MOV EAX, adr[EBP]
- SIDT [EAX]
-END StoreIDT;
-
-PROCEDURE StoreGDT(adr: LONGINT);
-CODE {SYSTEM.i386}
- MOV EAX, adr[EBP]
- SGDT [EAX]
-END StoreGDT;
-
-PROCEDURE WriteGDT;
-VAR ptr: ARRAY 2 OF LONGINT;  a, n, i: LONGINT;
-BEGIN
- StoreGDT(SYSTEM.ADR(ptr)+2);
- a := ptr[1];  n := ASH(ptr[0], -16);
- WriteString("GDT base=");  WriteHex(a, 8);  WriteString(" limit=");  WriteHex(n, 8);  WriteLn;
- n := (n+1) DIV 8;  i := 0;
- WHILE i < n DO
-  WriteHex(i, -2);  WriteChar(" ");
-  WriteDesc(a);  INC(a, 8);  INC(i)
- END;
- WriteLn
-END WriteGDT;
-
-PROCEDURE WriteIDT;
-VAR ptr: ARRAY 2 OF LONGINT;  a, n, i: LONGINT;
-BEGIN
- StoreIDT(SYSTEM.ADR(ptr)+2);
- a := ptr[1];  n := ASH(ptr[0], -16);
- WriteString("IDT base=");  WriteHex(a, 8);  WriteString(" limit=");  WriteHex(n, 8);  WriteLn;
- n := (n+1) DIV 8;  i := 0;
- WHILE i < n DO
-  WriteHex(i, -2);  WriteChar(" ");
-  WriteDesc(a);  INC(a, 8);  INC(i)
- END;
- WriteLn
-END WriteIDT;
-*)
 
 (* Wait - Waste a little time (jmp $+2) *)
 
@@ -1271,32 +1126,6 @@ BEGIN
   WriteInt(dead, 1);  WriteString(" dead]")
  END
 END Sweep;
-
-(*
-PROCEDURE CheckHeap(msg: ARRAY OF CHAR); (* check heap consistency *)
-VAR tag: Tag;  p, end: Blockm4Ptr; size, i: LONGINT;
-BEGIN
- WriteString(msg);  WriteLn;
- p := SYSTEM.VAL(Blockm4Ptr, firstBlock);
- end := SYSTEM.VAL(Blockm4Ptr, endBlock);
- i := 0;
- WHILE p # end DO
-  WriteHex(SYSTEM.VAL(LONGINT, p), 9);  WriteChar(".");
-  WriteHex(SYSTEM.VAL(LONGINT, p^.tag), 8);
-  tag := SYSTEM.VAL(Tag, SYSTEM.VAL(SET, p^.tag) - {MarkBit,ArrayBit,FreeBit});
-  ASSERT(tag # NIL);
-  IF ArrayBit IN SYSTEM.VAL(SET, p^.tag) THEN
-   size := p^.lastElemToMark + tag^.size - SYSTEM.VAL(LONGINT, p)
-  ELSE
-   size := tag^.size + 4
-  END;
-  WriteChar(".");  WriteHex(size, 8);
-  INC(i);  IF i MOD 3 = 0 THEN WriteLn END;
-  size := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, size + B-1)-SYSTEM.VAL(SET, B-1));
-  INC(SYSTEM.VAL(LONGINT, p), size)
- END
-END CheckHeap;
-*)
 
 PROCEDURE CheckCandidates; (* nofcand > 0 *)
  VAR i, j, h, p: LONGINT; block: Blockm4Ptr; tag, notmarked, tdesc: Tag;
@@ -2299,28 +2128,76 @@ BEGIN
  WriteString("KB extended memory");  WriteLn*)
 END CheckMemory;
 
-PROCEDURE ReadBootTable; (* set memTop, pageheap, configadr *)
+PROCEDURE ReadBootTable; 
 CONST HeapAdr = 100000H;
-VAR p, type, addr, size: LONGINT;
+VAR 
+  bp, mbi, flags, memLower, memUpper: LONGINT;
+  ptr: LONGINT;
+  i: INTEGER;
+  flagsSet: SET;
+  ch: CHAR;
 BEGIN
- memTop := 0;  pageheap := 0;  configadr := 0;
- p := bt;
- LOOP
-  SYSTEM.GET(p, type);
-  IF type = -1 THEN EXIT (* end *)
-  ELSIF type = 3 THEN (* boot memory/top of low memory *)
-   SYSTEM.GET(p+8, addr);  (*SYSTEM.GET(p+12, size);*)
-   pageheap := addr - addr MOD PS (* align to page boundary *)
-  ELSIF type = 4 THEN (* free memory/extended memory size *)
-   SYSTEM.GET(p+8, addr);  SYSTEM.GET(p+12, size);
-   IF addr = HeapAdr THEN memTop := HeapAdr+size END
-  ELSIF type = 8 THEN (* config strings *)
-   configadr := p+8
+  memTop := 0;  pageheap := 0;  configadr := 0;
+
+  (* Fetch the Multiboot Info Pointer (MBI) from the stack *)
+  SYSTEM.GETREG(5, bp);      
+  SYSTEM.GET(bp + 8, mbi);   
+  IF mbi = 0 THEN HALT(99) END;
+
+  (* Read Multiboot flags *)
+  SYSTEM.GET(mbi, flags);
+  flagsSet := SYSTEM.VAL(SET, flags);
+
+  (* Parse Memory *)
+  IF 0 IN flagsSet THEN
+    SYSTEM.GET(mbi + 4, memLower);
+    SYSTEM.GET(mbi + 8, memUpper);
+    pageheap := (memLower * 1024) - ((memLower * 1024) MOD PS);
+    memTop := HeapAdr + (memUpper * 1024);
+  ELSE
+    HALT(99);
   END;
-  SYSTEM.GET(p+4, size);  INC(p, size)
- END;
- WHILE (memTop = 0) OR (pageheap = 0) DO END; (* nothing else to do *)
- FOR p := 0 TO 2 DO SYSTEM.GET(408H + p*2, bioslpt[p]) END
+
+  (* Parse Command Line safely into BSS 
+     We expect the following format: {key=value;} *)
+  IF 2 IN flagsSet THEN
+    SYSTEM.GET(mbi + 16, ptr);
+    
+    (* Skip the kernel name (everything up to the first space) *)
+    LOOP
+      SYSTEM.GET(ptr, ch);
+      IF (ch = " ") OR (ch = 0X) THEN EXIT END;
+      INC(ptr);
+    END;
+
+    (* Skip separating spaces *)
+    WHILE ch = " " DO
+      INC(ptr);
+      SYSTEM.GET(ptr, ch);
+    END;
+
+    IF ch # 0X THEN
+      configadr := SYSTEM.ADR(cmdlineBuf[0]); 
+      i := 0;
+      
+      (* Copy over, applying the strict ';' and '=' syntax *)
+      WHILE (ch # 0X) & (i < LEN(cmdlineBuf) - 2) DO
+        IF (ch = "=") OR (ch = ";") THEN
+          cmdlineBuf[i] := 0X;
+        ELSE
+          cmdlineBuf[i] := ch;
+        END;
+        
+        INC(i);
+        INC(ptr);
+        SYSTEM.GET(ptr, ch);
+      END;
+      
+      (* Safely ensure the double-null termination in our own array *)
+      cmdlineBuf[i] := 0X;
+      cmdlineBuf[i + 1] := 0X;
+    END
+  END
 END ReadBootTable;
 
 (* ShowState - Show machine state *)
@@ -2726,19 +2603,8 @@ BEGIN
 
   (* initialise kernel TSS *)
  Fill4(SYSTEM.ADR(ktss), SIZE(TSSDesc) DIV 4, 0);
- (*ktss.Link := 0;*)
  ktss.ESP0 := 100000H+KernelStackSize; (* kernel stack org *)
  ktss.ESS0 := KernelStackSel;
- (*ktss.ESP1 := 0;  ktss.ESS1 := NullSelector;*)
- (*ktss.ESP2 := 0;  ktss.ESS2 := NullSelector;*)
- (*ktss.CR3 := 0;  ktss.EIP := 0;*)
- (*ktss.EFLAGS := {};*)
- (*ktss.EAX := 0;  ktss.ECX := 0;  ktss.EDX := 0;  ktss.EBX := 0;*)
- (*ktss.ESP := esp;  ktss.EBP := 0;  ktss.ESI := 0;  ktss.EDI := 0;*)
- (*ktss.ES := NullSelector;  ktss.CS := NullSelector;*)
- (*ktss.SS := NullSelector;  ktss.DS := NullSelector;*)
- (*ktss.FS := NullSelector;  ktss.GS := NullSelector;*)
- (*ktss.LDT := NullSelector;  ktss.TaskAttributes := 0;*)
  IF V86 THEN
   ktss.IOBitmapOffset := SHORT(SYSTEM.ADR(ktss.IOBitmap) - SYSTEM.ADR(ktss.Link))
   (* all bits in IOBitmap are 0 => all IO allowed *)
@@ -3202,41 +3068,22 @@ END InitTimer;
 (* InitTracing - Initialise trace info *)
 
 PROCEDURE InitTracing(VAR top: LONGINT);
-VAR s: ARRAY 32 OF CHAR;  ch: CHAR;
+VAR s: ARRAY 32 OF CHAR;
 BEGIN
-  (* initialize trace buffer *)
- GetConfig("TraceSize", s);  traceBufSize := StrToInt(s);
- IF traceBufSize <= 0 THEN traceBufSize := 2048 END; (* default *)
- DEC(top, traceBufSize);  traceBufAdr := top;
-  (* initialize console tracing *)
- GetConfig("TraceConsole", s);
- traceConsole := s[0] = "1";
- GetConfig("Init", s);
- IF s = "9090" THEN traceConsole := TRUE END;
- IF traceConsole THEN Fill4(DisplayBase, DisplayWidth*DisplayHeight DIV 4, 07200720H) END;
-  (* initialize V24 tracing *)
- traceHead := 0;  traceTail := 0;  traceMark := 0;
- GetConfig("TracePort", s);  tbase := SHORT(StrToInt(s));
- CASE tbase OF
-  1: tbase := 3F8H
-  |2: tbase := 2F8H
-  |3: tbase := 3E8H
-  |4: tbase := 2E8H
-  ELSE (* tbase = actual port number *)
- END;
- GetConfig("TraceBPS", s);  tspeed := StrToInt(s);
- IF (tspeed # 0) & (tbase = 0) THEN tbase := 3F8H
- ELSIF (tspeed = 0) & (tbase # 0) THEN tspeed := 19200
- END;
- IF tspeed > 0 THEN
-  SYSTEM.PORTIN(tbase+4, ch); (* check if port present *)
-  IF SYSTEM.VAL(SET, LONG(ORD(ch))) * {5..7} # {} THEN tspeed := 0;  tbase := 0 END
- END;
-  (* initialize Centronics tracing *)
- GetConfig("TracePrinter", s);  tlpt := StrToInt(s);
- IF (tlpt >= 1) & (tlpt <= 3) THEN tlpt := bioslpt[tlpt-1] END;
- GetConfig("TraceHeap", s);
- traceheap := SYSTEM.VAL(SET, StrToInt(s))
+  (* 1. Initialize the in-memory circular trace buffer (for System.Log) *)
+  GetConfig("TraceSize", s);  
+  traceBufSize := StrToInt(s);
+  IF traceBufSize <= 0 THEN traceBufSize := 2048 END; (* default fallback *)
+  
+  DEC(top, traceBufSize);  (* Allocate buffer at the top of memory *)
+  traceBufAdr := top;
+  traceHead := 0;  
+  traceTail := 0;  
+  traceMark := 0;
+
+  (* 2. Initialize Garbage Collector tracing flags *)
+  GetConfig("TraceHeap", s);
+  traceheap := SYSTEM.VAL(SET, StrToInt(s))
 END InitTracing;
 
 (* InitRuntime - Initialise runtime support. *)
@@ -3285,15 +3132,24 @@ END SwitchToLevel3;
 (* Init code called from OBL.  EAX = boot table offset.  2k stack is available. *)
 
 BEGIN
- SYSTEM.GETREG(0, bt); (* EAX from bootstrap loader *)
- SYSTEM.GETREG(6, kpar[0]);  SYSTEM.GETREG(7, kpar[1]); (* par0 & par1 *)
- tspeed := 0;  pspeed := 0;  displayPos := 0;  traceBufAdr := 0;  timer := NIL;
+ (* SYSTEM.GETREG(SYSTEM.EAX, bt); *)
+ (* EAX holds a pointer to the boot table. 
+    The Boot Table is a sequential list of records created by the bootloader in memory 
+    (starting at offset 800h). It contains things like:
+    Type 3: Boot area memory location
+    Type 4: Extended memory size (from BIOS INT 15h)
+    Type 5: Hard disk geometry (from BIOS INT 41h / 46h)
+    Type 8: The configuration strings (environment variables) *)
+ (* SYSTEM.GETREG(SYSTEM.ESI, kpar[0]);  SYSTEM.GETREG(SYSTEM.EDI, kpar[1]); *)
+ (* par0 not used
+    par1 32-bit physical memory address of the VESA Framebuffer*)
+ tspeed := 0;  traceBufAdr := 0;  timer := NIL;
  traceConsole := FALSE;  shutdown := 0;  tlpt := 0;
  ReadBootTable; (* set memTop, pageheap, configadr *)
  CheckMemory; (* adjust memTop *)
  pageheap0 := pageheap;  pageheap1 := 0;  heapTop := memTop;
  InitTracing(heapTop);
- version := "PC Native 05.01.2003";
+ version := "PC Native v2.3.7 + Multiboot";
  WriteString("ETH Oberon / ");  WriteString(version);  WriteLn;
  InitProcessor;  InitInterrupts;  InitTrapHandling;
  InitMemory;  InitHeap;
