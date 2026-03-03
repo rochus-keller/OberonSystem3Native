@@ -1,7 +1,7 @@
 (* ETH Oberon, Copyright 1990-2003 Computer Systems Institute, ETH Zurich, CH-8092 Zurich.
 Refer to the license.txt file provided with this distribution. *)
 
- MODULE Kernel; (** non-portable *) (* rc/ard/nm/jm/jdv/pjm/rml*)
+MODULE Kernel; (** non-portable *) (* rc/ard/nm/jm/jdv/pjm/rml*)
 
 (** Module Kernel is responsible for memory allocation, garbage collection and other run-time support for the Oberon language, 
     as well as interfacing to the underlying machine.  Using features exported from module Kernel may result in an unportable module, 
@@ -1937,7 +1937,7 @@ BEGIN
 END DefaultDisableGC;
 
 PROCEDURE InitHeap; (* heapTop, pageheap and modules already initialized *)
-CONST LinkAdr = 1000H;
+CONST LinkAdr = 10000H; 
 VAR
  pt, i, t, stacksize, size, dmasize: LONGINT;  f: FreeBlockPtr;  m: Module;  set: SET;
  td: POINTER TO RECORD filler: ARRAY 4 OF LONGINT; name: Name END;
@@ -1947,16 +1947,8 @@ VAR
 BEGIN
  inGC := FALSE;  break := FALSE;  FinObjs := NIL;
 
-  (* show statically linked modules *)
  m := modules;
- ASSERT(m # NIL); (* modules initialized by linker! *)
-(*
- WHILE m # NIL DO
-  WriteHex(SYSTEM.ADR(m.code[0]), 8);  WriteChar(" ");
-  WriteString(m.name);  WriteLn;
-  m := m.next
- END;
-*)
+ ASSERT(m # NIL); 
 
  m := modules;  WHILE m.name # "Kernel" DO m := m.next END;
  i := LEN(m.tdescs);  ptrElemTag := 0;
@@ -1967,82 +1959,61 @@ BEGIN
 
  GetConfig("StackSize", s);  stacksize := StrToInt(s);
  DEC(stacksize, stacksize MOD 4);
- IF stacksize <= 0 THEN stacksize := DefaultStackSize (* def *)
- ELSIF stacksize < 2*KernelStackSize THEN stacksize := 2*KernelStackSize (* min *)
+ IF stacksize <= 0 THEN stacksize := DefaultStackSize 
+ ELSIF stacksize < 2*KernelStackSize THEN stacksize := 2*KernelStackSize 
  END;
 
  GetConfig("DMASize", s);  dmasize := StrToInt(s);
- IF dmasize <= 0 THEN dmasize := 32*1024 (* def *)
- ELSIF dmasize < 8 THEN dmasize := 8 (* min *)
+ IF dmasize <= 0 THEN dmasize := 32*1024 
+ ELSIF dmasize < 8 THEN dmasize := 8 
  END;
- INC(dmasize, (-dmasize) MOD PS (*4*)); (* dmasize MOD PS (*4*) = 0 *)
+ INC(dmasize, (-dmasize) MOD PS); 
  
  GetConfig("PageHeap", s);  pageheap1 := StrToInt(s) * 1024;
  IF pageheap1 = 0 THEN pageheap1 := DefaultPageHeap END;
  INC(pageheap1, (-pageheap1) MOD PS);
- WriteInt((pageheap0-pageheap) DIV PS, 1);  WriteString(" pages allocated, ");
- WriteInt(pageheap1 DIV PS, 1);  WriteString(" pages reserved");  WriteLn;
  pageheap1 := pageheap - pageheap1;
- dma1 := pageheap1; (* dma1 MOD 4k = 0 *)
+ dma1 := pageheap1; 
  dma0 := dma1-dmasize;
  IF (dma0 DIV 10000H) # (dma1 DIV 10000H) THEN
-  DEC(dma0, dma1 MOD 10000H) (* at least one allocate of min(dmasize, 64k) will succeed *)
+  DEC(dma0, dma1 MOD 10000H) 
  END;
  IF dma0 MOD 10000H > 10000H-8 THEN DEC(dma0, 8) END;
  free0 := dma0;  prev := SYSTEM.ADR(dmafree);
  LOOP
-  free1 := free0 + (10000H-free0 MOD 10000H); (* next 64k boundary *)
+  free1 := free0 + (10000H-free0 MOD 10000H); 
   IF free1 > dma1 THEN free1 := dma1 END;
   IF free0 = free1 THEN EXIT END;
-  IF 9 IN traceheap THEN
-   WriteHex(free0, 8);  WriteHex(free1, 10);  WriteInt(free1-free0, 8);  WriteLn
-  END;
-  SYSTEM.PUT(free0, free1-free0); (* size of free block *)
-  SYSTEM.PUT(prev, free0); (* link from prev. free block *)
+  SYSTEM.PUT(free0, free1-free0); 
+  SYSTEM.PUT(prev, free0); 
   prev := free0+4;
   free0 := free1
  END;
- SYSTEM.PUT(prev, SYSTEM.VAL(LONGINT, 0)); (* last free block *)
+ SYSTEM.PUT(prev, SYSTEM.VAL(LONGINT, 0)); 
  
-  (* make DMA memory r/w for V86 mode *)
- ASSERT((dma0 < 400000H) & (dma1 < 400000H)); (* in first pt *)
- SYSTEM.GET(v86pd, pt); (* get first pt *)
+ ASSERT((dma0 < 400000H) & (dma1 < 400000H)); 
+ SYSTEM.GET(v86pd, pt); 
  DEC(pt, pt MOD PS);
  FOR i := dma0 DIV PS TO dma1 DIV PS - 1 DO
-  SYSTEM.GET(pt + 4*i, set);  SYSTEM.PUT(pt + 4*i, set + {1}) (* set r/w *)
+  SYSTEM.GET(pt + 4*i, set);  SYSTEM.PUT(pt + 4*i, set + {1}) 
  END;
 
-  (* get top part of heap *)
  high0 := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, 100000H+stacksize+4+B-1) - SYSTEM.VAL(SET, B-1)) - 4;
  high1 := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, heapTop-1) - SYSTEM.VAL(SET, B-1)) - 4;
- StackOrg := high0; (* user stack org *)
-  (* kernel stack sits below StackOrg, for stack overflows & GC *)
-
- SYSTEM.GET(LinkAdr+16H, low0); (* patched by Linker *)
- ASSERT(low0 MOD B = B-4); (* check if linker aligned correctly *)
- low1 := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, dma0) - SYSTEM.VAL(SET, B-1)) - 4 - B;
- ASSERT(low1-2*B >= low0); (* enough low memory? *)
- 
- IF traceheap * {0..15} # {} THEN
-  WriteHex(low0, 8);  WriteHex(low1, 10);  WriteHex(dma0, 10);  WriteHex(dma1, 10);  
-  WriteHex(StackOrg, 10);  WriteHex(high0, 10);  WriteHex(high1, 10);  WriteLn
- END;
+ StackOrg := high0; 
 
  ASSERT(high1 > 101000H);
-  (* clear new heap and stack *)
- Fill4(low0, (low1-low0) DIV 4, 0);
- Fill4(100000H, (high1-100000H) DIV 4, 0);
- 
+
   (* init heap *)
  firstBlock := LinkAdr+3CH;  endBlock := high1;
  
-  (* find last block in Linker-generated heap (p^.tag will be NIL because of Fill4(low0, ...) above) *)
+  (* Traverse modules to find the end of the Boot Image *)
  p := SYSTEM.VAL(Blockm4Ptr, firstBlock);
  WHILE p^.tag # NIL DO
   tag := p^.tag;
   initres := SYSTEM.VAL(InitPtr, SYSTEM.VAL(ADDRESS, p)+(4+24));
   tdesc := SYSTEM.VAL(Tag, SYSTEM.VAL(SET, tag) - array - mark);
-  IF array * SYSTEM.VAL(SET, tag) # {} THEN (* array block *)
+  IF array * SYSTEM.VAL(SET, tag) # {} THEN 
    size := p^.lastElemToMark + tdesc^.size - SYSTEM.VAL(ADDRESS, p)
   ELSE
    size := tdesc^.size + 4
@@ -2050,10 +2021,27 @@ BEGIN
   size := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, size + B-1)-SYSTEM.VAL(SET, B-1));
   INC(SYSTEM.VAL(ADDRESS, p), size)
  END;
- SYSTEM.GET(initres, c);  ASSERT(c = 0E8X); (* call to first module body *)
- (* now initres points to last block, i.e. the init calls - they won't be GC'ed *)
- 
-  (* initial free blocks *)
+ SYSTEM.GET(initres, c);  ASSERT((c = 0E8X) OR (c = 0BCX)); 
+
+  (* Calculate low0 safely skipping the 8KB boot stack *)
+ low0 := SYSTEM.VAL(ADDRESS, p) + 8192;
+ low0 := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, low0 + 4 + B - 1) - SYSTEM.VAL(SET, B - 1)) - 4;
+
+ low1 := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, dma0) - SYSTEM.VAL(SET, B-1)) - 4 - B;
+ ASSERT(low1-2*B >= low0); (* enough low memory? *)
+
+  (* Bridge the gap across the stack with a Marked System Block *)
+ sysres := SYSTEM.VAL(InitPtr, p);
+ sysres^.tag := SYSTEM.VAL(Tag, SYSTEM.VAL(SET, SYSTEM.ADR(sysres^.z0)) + mark);
+ sysres^.z0 := low0 - SYSTEM.VAL(ADDRESS, p) - 4;
+ sysres^.z1 := -4;
+ sysres^.z5 := SYSTEM.ADR(sysres^.z0);
+
+  (* Clear the remaining unallocated memory *)
+ Fill4(low0, (low1-low0) DIV 4, 0);
+ Fill4(100000H, (high1-100000H) DIV 4, 0);
+
+  (* Initial free blocks *)
  f := SYSTEM.VAL(FreeBlockPtr, high0);
  f^.tag := SYSTEM.VAL(Tag, SYSTEM.VAL(SET, SYSTEM.ADR(f^.size)) + free);
  f^.size := high1-high0-4;  f^.next := 0;
@@ -2062,19 +2050,19 @@ BEGIN
  f^.tag := SYSTEM.VAL(Tag, SYSTEM.VAL(SET, SYSTEM.ADR(f^.size)) + free);
  f^.size := low1-low0-4;  f^.next := high0;
  
-  (* system reserved memory *)
+  (* Bridge the video gap (low1 to high0) with a Marked System Block *)
  sysres := SYSTEM.VAL(InitPtr, low1);
  sysres^.tag := SYSTEM.VAL(Tag, SYSTEM.VAL(SET, SYSTEM.ADR(sysres^.z0)) + mark);
  sysres^.z0 := high0-low1-4;  sysres^.z1 := -4;
  sysres^.z5 := SYSTEM.ADR(sysres^.z0);
  sysres := SYSTEM.VAL(InitPtr, low1 + 28);
 
-  (* init free list & reserve *)
+  (* Trigger the first Garbage Collection *)
  reserve := NIL;  firstTry := TRUE;
  GClevel := 1;  GCstack := FALSE;
- GC;
+ GC; 
  GClevel := 0;  GCstack := TRUE;
- EnableGC := DefaultEnableGC;  DisableGC := DefaultDisableGC
+ EnableGC := DefaultEnableGC;  DisableGC := DefaultDisableGC;
 END InitHeap;
 
 (* IsRAM - Check if the specified address is RAM *)
@@ -2140,9 +2128,12 @@ BEGIN
   memTop := 0;  pageheap := 0;  configadr := 0;
 
   (* Fetch the Multiboot Info Pointer (MBI) from the stack *)
-  SYSTEM.GETREG(5, bp);      
-  SYSTEM.GET(bp + 8, mbi);   
-  IF mbi = 0 THEN HALT(99) END;
+  SYSTEM.GETREG(5, bp);      (* Get EBP of ReadBootTable *)
+  SYSTEM.GET(bp, bp);        (* Step up the frame chain to the Kernel BEGIN block *)
+  SYSTEM.GET(bp + 8, mbi);   (* Fetch the pushed EBX parameter *)
+  IF mbi = 0 THEN 
+    HALT(99) 
+  END;
 
   (* Read Multiboot flags *)
   SYSTEM.GET(mbi, flags);
@@ -2157,6 +2148,9 @@ BEGIN
   ELSE
     HALT(99);
   END;
+
+  cmdlineBuf[0] := 0X;
+  configadr := SYSTEM.ADR(cmdlineBuf[0]); 
 
   (* Parse Command Line safely into BSS 
      We expect the following format: {key=value;} *)
@@ -2177,7 +2171,6 @@ BEGIN
     END;
 
     IF ch # 0X THEN
-      configadr := SYSTEM.ADR(cmdlineBuf[0]); 
       i := 0;
       
       (* Copy over, applying the strict ';' and '=' syntax *)
@@ -3070,7 +3063,7 @@ END InitTimer;
 PROCEDURE InitTracing(VAR top: LONGINT);
 VAR s: ARRAY 32 OF CHAR;
 BEGIN
-  (* 1. Initialize the in-memory circular trace buffer (for System.Log) *)
+  (* Initialize the in-memory circular trace buffer (for System.Log) *)
   GetConfig("TraceSize", s);  
   traceBufSize := StrToInt(s);
   IF traceBufSize <= 0 THEN traceBufSize := 2048 END; (* default fallback *)
@@ -3081,7 +3074,7 @@ BEGIN
   traceTail := 0;  
   traceMark := 0;
 
-  (* 2. Initialize Garbage Collector tracing flags *)
+  (* Initialize Garbage Collector tracing flags *)
   GetConfig("TraceHeap", s);
   traceheap := SYSTEM.VAL(SET, StrToInt(s))
 END InitTracing;
@@ -3131,7 +3124,23 @@ END SwitchToLevel3;
 
 (* Init code called from OBL.  EAX = boot table offset.  2k stack is available. *)
 
+PROCEDURE PrintLn*(str: ARRAY OF CHAR);
+VAR i: LONGINT; ch: CHAR;
 BEGIN
+  i := 0;
+  ch := str[i];
+  WHILE ch # 0X DO
+    (*RawOut.Char(ch); works *)
+    SYSTEM.PORTOUT(0E9H, ch); (* works as well*)
+    INC(i);
+    ch := str[i]
+  END;
+  ch := 0AX;
+  SYSTEM.PORTOUT(0E9H, ch);
+END PrintLn;
+  
+BEGIN
+ (* PrintLn("BEGIN Kernel"); *)
  (* SYSTEM.GETREG(SYSTEM.EAX, bt); *)
  (* EAX holds a pointer to the boot table. 
     The Boot Table is a sequential list of records created by the bootloader in memory 
@@ -3152,12 +3161,15 @@ BEGIN
  version := "PC Native v2.3.7 + Multiboot";
  WriteString("ETH Oberon / ");  WriteString(version);  WriteLn;
  InitProcessor;  InitInterrupts;  InitTrapHandling;
- InitMemory;  InitHeap;
+ InitMemory;  
+ InitHeap;
   (* switch to level 3 (after InitHeap inits StackOrg) *)
  SwitchToLevel3(UserStackSel, StackOrg, UserCodeSel);
   (* on new stack *)
  InitTimer;  (*InitBeeps;*)
- InitClock;  InitRuntime
+ InitClock;  
+ InitRuntime;
+ (* PrintLn("END Kernel"); *)
 END Kernel.
 
 (*
