@@ -1,7 +1,7 @@
 (* ETH Oberon, Copyright 1990-2003 Computer Systems Institute, ETH Zurich, CH-8092 Zurich.
 Refer to the license.txt file provided with this distribution. *)
 
-MODULE Dim3Base; (** portable *) (* David Ulrich Nov  95 - MÃ¤rz 96 *)
+MODULE Dim3Base; (** portable *) (* David Ulrich Nov  95 - März 96 *)
 (* This module contains not portable procedures for the Native version **)
 
 IMPORT S := SYSTEM, Pictures;

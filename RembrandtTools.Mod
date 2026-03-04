@@ -2,7 +2,7 @@
 Refer to the license.txt file provided with this distribution. *)
 
 MODULE RembrandtTools; (** portable *)
-(** EnthÃ¤lt alle Operationen zum Rembrandt-Editor *)
+(** Enthält alle Operationen zum Rembrandt-Editor *)
 
 IMPORT
  D3 := Display3, Display, Oberon, Pictures, Effects, Input, Rembrandt, Gadgets, Texts, Rembrandt0, Math, RembrandtDocs,
@@ -1146,7 +1146,7 @@ BEGIN
  END
 END FlipV;
 
-(** Generiert aus dem selektierten Bereich ein Picture der GrÃ¶sse eines Icons *)
+(** Generiert aus dem selektierten Bereich ein Picture der Grösse eines Icons *)
 PROCEDURE MakeIcon*;
 VAR P, S, D: Pictures.Picture; px, py, pw, ph, iconw, iconh, bw, bh, bwr, bhr, i, j, k, l, col, r, g, b, weight: INTEGER;
   T: Texts.Scanner;  F: Rembrandt.Frame;
@@ -1205,7 +1205,7 @@ BEGIN
  END    
 END MakeIcon;
 
-(** Dithert ein markiertes Picture mit den Parameter Helligkeit und SÃ¤ttigung *)
+(** Dithert ein markiertes Picture mit den Parameter Helligkeit und Sättigung *)
 PROCEDURE Reduce*;
 VAR D: Pictures.Picture;
   ds, dv, r, g, b: INTEGER;
@@ -1237,7 +1237,7 @@ BEGIN
  END
 END Oldval;
 
-(** Weist dem Handler fÃ¼r die mittlere Maustaste eine neue Prozedur zu *)
+(** Weist dem Handler für die mittlere Maustaste eine neue Prozedur zu *)
 PROCEDURE Assign*(proc: Rembrandt.TrackMMProc; cursor: Oberon.Marker);
 BEGIN
  Rembrandt.trackMM:= proc;
@@ -1245,7 +1245,7 @@ BEGIN
  Oldval
 END Assign;
 
-(** Operationen dem Handler fÃ¼r die mittlere Maustaste zuordnen; sind selbstsprechend *)
+(** Operationen dem Handler für die mittlere Maustaste zuordnen; sind selbstsprechend *)
 PROCEDURE Points*;
 BEGIN
  Assign(HandlePoints, Effects.Cross)

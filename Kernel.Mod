@@ -3124,7 +3124,8 @@ END SwitchToLevel3;
 
 (* Init code called from OBL.  EAX = boot table offset.  2k stack is available. *)
 
-PROCEDURE PrintLn*(str: ARRAY OF CHAR);
+
+PROCEDURE Print(str: ARRAY OF CHAR);
 VAR i: LONGINT; ch: CHAR;
 BEGIN
   i := 0;
@@ -3135,23 +3136,17 @@ BEGIN
     INC(i);
     ch := str[i]
   END;
-  ch := 0AX;
-  SYSTEM.PORTOUT(0E9H, ch);
-END PrintLn;
+END Print;
+
+PROCEDURE Hello*(str: ARRAY OF CHAR);
+BEGIN
+  Print("Hello from ");
+  Print(str);
+  SYSTEM.PORTOUT(0E9H, 0AX);
+END Hello;
   
 BEGIN
- (* PrintLn("BEGIN Kernel"); *)
- (* SYSTEM.GETREG(SYSTEM.EAX, bt); *)
- (* EAX holds a pointer to the boot table. 
-    The Boot Table is a sequential list of records created by the bootloader in memory 
-    (starting at offset 800h). It contains things like:
-    Type 3: Boot area memory location
-    Type 4: Extended memory size (from BIOS INT 15h)
-    Type 5: Hard disk geometry (from BIOS INT 41h / 46h)
-    Type 8: The configuration strings (environment variables) *)
- (* SYSTEM.GETREG(SYSTEM.ESI, kpar[0]);  SYSTEM.GETREG(SYSTEM.EDI, kpar[1]); *)
- (* par0 not used
-    par1 32-bit physical memory address of the VESA Framebuffer*)
+ Hello("Kernel");
  tspeed := 0;  traceBufAdr := 0;  timer := NIL;
  traceConsole := FALSE;  shutdown := 0;  tlpt := 0;
  ReadBootTable; (* set memTop, pageheap, configadr *)
@@ -3169,7 +3164,6 @@ BEGIN
  InitTimer;  (*InitBeeps;*)
  InitClock;  
  InitRuntime;
- (* PrintLn("END Kernel"); *)
 END Kernel.
 
 (*

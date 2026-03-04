@@ -12,7 +12,7 @@ Dave Zimmerman <dzimm@widget.com>, copyright 1996 Widget Workshop, Inc.
 
 The Java version was Copyright (C) 1998 Olivetti and Oracle Research Laboratory
 
-GÃ¼nter Feldmann reports that this DES implementation is not compatible with others.
+Günter Feldmann reports that this DES implementation is not compatible with others.
 For an implementation compatible with SSH and OpenSSH, use his cryptDES module instead.
 *)
 

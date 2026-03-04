@@ -8,7 +8,7 @@ Refer to the license.txt file provided with this distribution. *)
 (*
  References:
  1. N. Wirth Oberon Language Report
- 2. Wirth/MÃ¶ssenbÃ¶ck, Oberon-2 Langauge Report
+ 2. Wirth/Mössenböck, Oberon-2 Langauge Report
 *)
 
 MODULE OPB; (** non-portable *)

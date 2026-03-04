@@ -19,7 +19,7 @@ CONST
  DocW = 384; DocH = 250;
  Menu = "Desktops.Copy[Copy] RembrandtDocs.Inc[+] RembrandtDocs.Dec[-] Desktops.StoreDoc[Store]";
 
-(** ErhÃ¶ht den Zoomfaktor *)
+(** Erhöht den Zoomfaktor *)
 PROCEDURE Inc*;
 VAR doc: Documents.Document; F: Rembrandt.Frame; zoom: INTEGER;
 BEGIN
@@ -170,7 +170,7 @@ BEGIN
  NEW(D); InitDoc(D); Objects.NewObj := D
 END NewDoc;
 
-(** Ã–ffnet ein leeres RembrandtDocument mit Breite und HÃ¶he als Parameter *)
+(** Öffnet ein leeres RembrandtDocument mit Breite und Höhe als Parameter *)
 PROCEDURE Open*;
 VAR S: Texts.Scanner; x, y, pw, ph, r, g, b: INTEGER;
   doc: Documents.Document;
@@ -195,7 +195,7 @@ BEGIN
  END
 END Open;
 
-(** Ã–ffnet ein neues RembrandtDocument mit Picture P und Name name *)
+(** Öffnet ein neues RembrandtDocument mit Picture P und Name name *)
 PROCEDURE OpenPict*(P: Pictures.Picture; name: ARRAY OF CHAR);
 VAR doc: Documents.Document;
 BEGIN
@@ -206,7 +206,7 @@ BEGIN
  Desktops.ShowDoc(doc) (* Version 1.6 *)
 END OpenPict;
 
-(** Markiertes RembrandtDocument zurÃ¼ckgeben *)
+(** Markiertes RembrandtDocument zurückgeben *)
 PROCEDURE MarkedFrame*(): Rembrandt.Frame;
 VAR doc: Documents.Document;
 BEGIN

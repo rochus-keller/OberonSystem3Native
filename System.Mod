@@ -1119,6 +1119,7 @@ BEGIN
 END Greetings;
 
 BEGIN
+ Kernel.Hello("System");
  Kernel.EnableGC;
  Texts.OpenWriter(W);
  init := FALSE;  trapped := 0;  trap := 0;

@@ -361,7 +361,7 @@ MODULE MIME; (** portable *)
       RETURN 6
      END
    |"L": RETURN 7 (* Luglio *)
-   |"M": IF CAP(str[2]) = "R" THEN (* March, MÃ¤rz, Mars *)
+   |"M": IF CAP(str[2]) = "R" THEN (* March, März, Mars *)
       RETURN 3
      ELSIF CAP(str[2]) = "Z" THEN (* Mazzo *)
       RETURN 3

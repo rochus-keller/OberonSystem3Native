@@ -386,6 +386,7 @@ BEGIN
 END Cleanup;
 
 BEGIN
+ Kernel.Hello("Disks");
  num := 0; NEW(dev, 4);
  Kernel.InstallTermHandler(Cleanup)
 END Disks.

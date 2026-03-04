@@ -205,17 +205,17 @@ Util.Dump  Inter.Text \2000~
 
 Auf Ganymed befindet sich ein Tool zur Konversion von Writedokumenten
 nach Scripts. Alle Elems werden entfernt, Fonts bleiben erhalten.
-Die eigentliche "Gag" ist aber die MÃ¶glichkeit der Abbildung von Parcs in
-Styles, d.h. der Ãœbernahme von Formatmerkmalen in das entsprechende
+Die eigentliche "Gag" ist aber die Möglichkeit der Abbildung von Parcs in
+Styles, d.h. der Übernahme von Formatmerkmalen in das entsprechende
 Scriptsdokument.
-Das Original erhÃ¤lt die Extension "*.Bak".
+Das Original erhält die Extension "*.Bak".
 
 Net.ReceiveFiles Ganymed WTS.Obj Scripts.Obj ScriptFrames.Obj ~
 
 Zum Ausprobieren: Net.ReceiveFiles Pluto OberonReport.Text ~
 
 WTS.Convert OberonReport.Text ~  konvertiert Text (entfernt Elems)
-WTS.Convert Cat.Appl.Text/s ~   konvertiert zusÃ¤tzlich Parcs nach Styles
+WTS.Convert Cat.Appl.Text/s ~   konvertiert zusätzlich Parcs nach Styles
 
 WTS.Convert   Oberon2.Report.Text/s  ~
 

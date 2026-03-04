@@ -85,9 +85,9 @@ MODULE Strings; (** portable *) (* ejz,   *)
  BEGIN
   CASE ch OF
    "A" .. "Z": ch := CHR(ORD(ch)-ORD("A")+ORD("a"))
-   |"Ã„": ch := "Ã¤"
-   |"Ã–": ch := "Ã¶"
-   |"Ãœ": ch := "Ã¼"
+   |"Ä": ch := "ä"
+   |"Ö": ch := "ö"
+   |"Ü": ch := "ü"
   ELSE
   END;
   RETURN ch
@@ -98,26 +98,26 @@ MODULE Strings; (** portable *) (* ejz,   *)
  BEGIN
   CASE ch OF
    "a" .. "z": ch := CAP(ch)
-   |"Ã¤": ch := "Ã„"
-   |"Ã¶": ch := "Ã–"
-   |"Ã¼": ch := "Ãœ"
-   |"Ã¢": ch := "A"
-   |"Ãª": ch := "E"
-   |"Ã®": ch := "I"
-   |"Ã´": ch := "O"
-   |"Ã»": ch := "U"
-   |"Ã ": ch := "A"
-   |"Ã¨": ch := "E"
-   |"Ã¬": ch := "I"
-   |"Ã²": ch := "O"
-   |"Ã¹": ch := "U"
-   |"Ã©": ch := "E"
-   |"Ã«": ch := "E"
-   |"Ã¯": ch := "I"
-   |"Ã§": ch := "C"
-   |"Ã¡": ch := "A"
-   |"Ã±": ch := "N"
-   |"ÃŸ": ch := "S"
+   |"ä": ch := "Ä"
+   |"ö": ch := "Ö"
+   |"ü": ch := "Ü"
+   |"â": ch := "A"
+   |"ê": ch := "E"
+   |"î": ch := "I"
+   |"ô": ch := "O"
+   |"û": ch := "U"
+   |"à": ch := "A"
+   |"è": ch := "E"
+   |"ì": ch := "I"
+   |"ò": ch := "O"
+   |"ù": ch := "U"
+   |"é": ch := "E"
+   |"ë": ch := "E"
+   |"ï": ch := "I"
+   |"ç": ch := "C"
+   |"á": ch := "A"
+   |"ñ": ch := "N"
+   |"ß": ch := "S"
   ELSE
   END;
   RETURN ch
@@ -851,14 +851,14 @@ END StrToReal;
   FOR i := 0 TO 255 DO
    isAlpha[i] := ((i >= ORD("A")) & (i <= ORD("Z"))) OR ((i >= ORD("a")) & (i <= ORD("z")))
   END;
-  isAlpha[ORD("Ã„")] := TRUE; isAlpha[ORD("Ã–")] := TRUE; isAlpha[ORD("Ãœ")] := TRUE;
-  isAlpha[ORD("Ã¤")] := TRUE; isAlpha[ORD("Ã¶")] := TRUE; isAlpha[ORD("Ã¼")] := TRUE;
-  isAlpha[ORD("Ã¢")] := TRUE; isAlpha[ORD("Ãª")] := TRUE; isAlpha[ORD("Ã®")] := TRUE;
-  isAlpha[ORD("Ã´")] := TRUE; isAlpha[ORD("Ã»")] := TRUE; isAlpha[ORD("Ã ")] := TRUE;
-  isAlpha[ORD("Ã¨")] := TRUE; isAlpha[ORD("Ã¬")] := TRUE; isAlpha[ORD("Ã²")] := TRUE;
-  isAlpha[ORD("Ã¹")] := TRUE; isAlpha[ORD("Ã©")] := TRUE; isAlpha[ORD("Ã«")] := TRUE;
-  isAlpha[ORD("Ã¯")] := TRUE; isAlpha[ORD("Ã§")] := TRUE; isAlpha[ORD("Ã¡")] := TRUE;
-  isAlpha[ORD("Ã±")] := TRUE; isAlpha[ORD("ÃŸ")] := TRUE;
+  isAlpha[ORD("Ä")] := TRUE; isAlpha[ORD("Ö")] := TRUE; isAlpha[ORD("Ü")] := TRUE;
+  isAlpha[ORD("ä")] := TRUE; isAlpha[ORD("ö")] := TRUE; isAlpha[ORD("ü")] := TRUE;
+  isAlpha[ORD("â")] := TRUE; isAlpha[ORD("ê")] := TRUE; isAlpha[ORD("î")] := TRUE;
+  isAlpha[ORD("ô")] := TRUE; isAlpha[ORD("û")] := TRUE; isAlpha[ORD("à")] := TRUE;
+  isAlpha[ORD("è")] := TRUE; isAlpha[ORD("ì")] := TRUE; isAlpha[ORD("ò")] := TRUE;
+  isAlpha[ORD("ù")] := TRUE; isAlpha[ORD("é")] := TRUE; isAlpha[ORD("ë")] := TRUE;
+  isAlpha[ORD("ï")] := TRUE; isAlpha[ORD("ç")] := TRUE; isAlpha[ORD("á")] := TRUE;
+  isAlpha[ORD("ñ")] := TRUE; isAlpha[ORD("ß")] := TRUE;
   FOR i := 0 TO 255 DO
    ISOToOberon[i] := CHR(i); OberonToISO[i] := CHR(i)
   END;

@@ -26,7 +26,7 @@ TYPE
  
 VAR
  cdid: ARRAY 32 OF CHAR;
- 
+
 (** Get block from adr [1..size] of volume vol *)
 PROCEDURE GetBlock*(vol: OFS.Volume; adr: LONGINT; VAR blk: ARRAY OF SYSTEM.BYTE);
 VAR res, dadr: LONGINT;  dev: Disks.Device;
@@ -285,6 +285,7 @@ BEGIN
 END New;
 
 BEGIN
+ Kernel.Hello("OFSDiskVolumes");
  cdid := "?CD001?EL TORITO SPECIFICATION?";
  cdid[0] := 0X; cdid[6] := 1X; cdid[30] := 0X; cdid[31] := 0X
 END OFSDiskVolumes.

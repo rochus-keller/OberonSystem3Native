@@ -1,7 +1,7 @@
 (* ETH Oberon, Copyright 1990-2003 Computer Systems Institute, ETH Zurich, CH-8092 Zurich.
 Refer to the license.txt file provided with this distribution. *)
 
-MODULE Layouts; (** portable *) (* JÃ¶rg Derungs, 31.7.1996 *)
+MODULE Layouts; (** portable *) (* Jörg Derungs, 31.7.1996 *)
 
 IMPORT Objects, Gadgets, Display, Out;
 

@@ -7,7 +7,7 @@ MODULE Reals; (** portable *)
 LONGREAL manipulation. The routines here are required to do conversion 
 of reals to strings and back. 
 Implemented by Bernd Moesli, Seminar for Applied Mathematics, 
-Swiss Federal Institute of Technology ZÃ¼rich.
+Swiss Federal Institute of Technology Zürich.
 *)
 
 IMPORT SYSTEM, Kernel;

@@ -2,7 +2,7 @@
 Refer to the license.txt file provided with this distribution. *)
 
 MODULE FontEditor; (** portable *)
-(** Dieses Modul enthÃ¤lt einen Editor fÃ¼r Fonts basierend auf Rembrandt-Editor *)
+(** Dieses Modul enthält einen Editor für Fonts basierend auf Rembrandt-Editor *)
 
 (*
  jm 28.6.95 - Fix ConvertStringtopos
@@ -11,18 +11,18 @@ IMPORT SYSTEM, Files, Display, D3 := Display3, Objects, Gadgets, Input, Oberon, 
     Fonts, Out, Texts, Documents, Pictures, Printer, Printer3, Desktops;
 
 CONST
- border=1;  (* Randdicke fÃ¼r Fonttable *)
+ border=1;  (* Randdicke für Fonttable *)
  tabled= 3;  (* Abstand des Ursprungs eines Characters von der unteren linken Ecke einer Zelle der Fonttable *)
 
  dbeg = 33;  (* in Original darstellbare Zeichen: Anfang/Ende *)
  dend = 151;
 
- dheight = 18;       (* FlÃ¤che fÃ¼r ein Character in der Fonttable *)
+ dheight = 18;       (* Fläche für ein Character in der Fonttable *)
  dwidth = 18;
 
- pictupdate = 14000;    (* FlÃ¤che des Pictures, fÃ¼r welche das Previewframe noch updated wird *)
+ pictupdate = 14000;    (* Fläche des Pictures, für welche das Previewframe noch updated wird *)
 
- undef = -1;       (* FÃ¼r den entsprechenden Character sind keine Daten im Raster vorhanden; ist leer *)
+ undef = -1;       (* Für den entsprechenden Character sind keine Daten im Raster vorhanden; ist leer *)
 
  MM= 1;
  MR= 0;
@@ -46,21 +46,21 @@ TYPE
   raster: POINTER TO ARRAY OF CHAR
  END;
 
- Fonttable = POINTER TO FonttableDesc;   (* Tabelle fÃ¼r Charakterauswahl *)
+ Fonttable = POINTER TO FonttableDesc;   (* Tabelle für Charakterauswahl *)
  FonttableDesc= RECORD (Gadgets.FrameDesc)
          f: Font;
-         col: INTEGER  (* fÃ¼r Version 1.6 *)
+         col: INTEGER  (* für Version 1.6 *)
         END;
 
- Character = POINTER TO CharDesc;     (* VergrÃ¶sserte Darstellung eines Characters zum editieren *)
+ Character = POINTER TO CharDesc;     (* Vergrösserte Darstellung eines Characters zum editieren *)
  CharDesc = RECORD (Rembrandt.FrameDesc) (* Erweiterung von Rembrandt.Frame *)
-        f: Font;          (* zugehÃ¶riger Font *)
+        f: Font;          (* zugehöriger Font *)
         char: INTEGER;       (* dargestellter Character *)
         x, y, dx: INTEGER;      (* aktuelle Positionen der Metriken *)
         x0, y0: INTEGER;      (* Abstand des Ursprungs von der unteren linken Ecke des Pictures *)
       END;
 
- Preview = POINTER TO PreviewDesc;    (* Vorschau des vergrÃ¶sserten zur Zeit in Bearbeitung stehenden Characters *)
+ Preview = POINTER TO PreviewDesc;    (* Vorschau des vergrösserten zur Zeit in Bearbeitung stehenden Characters *)
  PreviewDesc = RECORD (Rembrandt.FrameDesc)
         f: Font;
         char: INTEGER
@@ -84,7 +84,7 @@ PROCEDURE Min(a, b: INTEGER): INTEGER; BEGIN IF a<b THEN RETURN a ELSE RETURN b 
 PROCEDURE Max(a, b: INTEGER): INTEGER; BEGIN IF a>b THEN RETURN a ELSE RETURN b END END Max;
 
 PROCEDURE Get(F: Font; beg, w, x, y: LONGINT): BOOLEAN;
-(* Gibt zurÃ¼ck, ob Punkt im Fontraster gesetzt ist *)
+(* Gibt zurück, ob Punkt im Fontraster gesetzt ist *)
 VAR ch: INTEGER; s: SET;
 BEGIN
  ch := ORD(F.raster[beg + w * y + x DIV 8]);
@@ -93,7 +93,7 @@ BEGIN
 END Get;
 
 PROCEDURE Put(F: Font; beg, w, x, y: LONGINT; b: BOOLEAN);
-(* Setzt/lÃ¶scht einen Punkt im Fontraster *)
+(* Setzt/löscht einen Punkt im Fontraster *)
 VAR ch: INTEGER; s: SET;
 BEGIN
  ch := ORD(F.raster[beg+w * y + x DIV 8]);
@@ -106,7 +106,7 @@ END Put;
 
 PROCEDURE CharOrg(F: Font; VAR x0, y0: INTEGER);
 (* Gibt den Abstand des Ursprungs eines Character im Pictures von der linken unteren Ecke *)
-(* Heuristik: kann irgendwie gewÃ¤hlt werden *)
+(* Heuristik: kann irgendwie gewählt werden *)
 BEGIN
  x0:= F.height DIV 4; y0:= F.height DIV 3
 END CharOrg;
@@ -160,7 +160,7 @@ BEGIN
  END
 END ConvertStringtoPos;
 
-(** Zoomfaktor des Pictures wird erhÃ¶ht *)
+(** Zoomfaktor des Pictures wird erhöht *)
 PROCEDURE Inc*;
 CONST dz=3; maxzoom=16;
 VAR doc: Documents.Document; F: Rembrandt.Frame; zoom: INTEGER;
@@ -212,7 +212,7 @@ BEGIN
  END *)
 END StoreDoc;
 
-(** Speichert das markierte Zeichen im zugehÃ¶rigen Font ab *)
+(** Speichert das markierte Zeichen im zugehörigen Font ab *)
 PROCEDURE StoreCharacter*;
 VAR D: Documents.Document;
   obj: Character; sM: StoreMsg; pos: INTEGER;
@@ -273,11 +273,11 @@ BEGIN
 END DocHandler;
 
 PROCEDURE OpenDoc(P: Pictures.Picture; f: Font; pos: INTEGER; name: ARRAY OF CHAR);
-(* Ein Document mit dem Charactercode "pos" und Documentname "name", dargestellt im Picture, wird geÃ¶ffnet *)
+(* Ein Document mit dem Charactercode "pos" und Documentname "name", dargestellt im Picture, wird geöffnet *)
 VAR doc: Documents.Document; zoom: INTEGER;
   obj: Character;
 BEGIN
- IF f.height<=20 THEN zoom:= 16 ELSE zoom:= 7 END; (* VergrÃ¶sserte Darstellung je nach FontgrÃ¶sse *)
+ IF f.height<=20 THEN zoom:= 16 ELSE zoom:= 7 END; (* Vergrösserte Darstellung je nach Fontgrösse *)
  NEW(doc); doc.Load:= LoadDoc; doc.Store:= StoreDoc; doc.handle:= DocHandler;
  Objects.NewObj:= doc;
  COPY(name, doc.name);
@@ -291,7 +291,7 @@ BEGIN
  Rembrandt.BlockSelect
 END OpenDoc;
 
-(** Ã–ffnet ein neues Document *)
+(** Öffnet ein neues Document *)
 PROCEDURE NewDoc*;
 VAR D: Documents.Document;
 BEGIN
@@ -324,7 +324,7 @@ BEGIN
 END DisplayChar;
 
 PROCEDURE BoxesinTable(F: Font; w, h: INTEGER; VAR cw, ch: INTEGER);
-(* Gibt die Anzahl EintrÃ¤ge der Fonttable in HÃ¶he und Breite zurÃ¼ck *)
+(* Gibt die Anzahl Einträge der Fonttable in Höhe und Breite zurück *)
 BEGIN
  cw:= (w-2*border) DIV dwidth;
  ch:= (h-2*border) DIV dheight; 
@@ -365,7 +365,7 @@ BEGIN
 END CreateCharPict;
 
 PROCEDURE PreviewChar(F: Font; pos: INTEGER);
-(* Stellt ein Character in OriginalgrÃ¶sse im Preview-Gadget dar *)
+(* Stellt ein Character in Originalgrösse im Preview-Gadget dar *)
 VAR P: Pictures.Picture;
 BEGIN 
  P:= CreateCharPict(F, pos);
@@ -392,7 +392,7 @@ BEGIN
 END RestoreTable;
 
 PROCEDURE Selected(F: Font; x, y, w, h, mx, my: INTEGER): INTEGER;
-(* Gibt selektierte Character-Code zurÃ¼ck anhand Ausmass der Fonttable *)
+(* Gibt selektierte Character-Code zurück anhand Ausmass der Fonttable *)
 VAR bw, bh, cx, cy: INTEGER;
 BEGIN
  BoxesinTable(F, w, h, bw, bh);
@@ -468,15 +468,15 @@ BEGIN
   END
  END;
  sel:= M.pos; 
- IF x0=MAX(INTEGER) THEN (* Character gelÃ¶scht *)
+ IF x0=MAX(INTEGER) THEN (* Character gelöscht *)
   f.box[sel].dx:= M.obj.dx; f.box[sel].x:= 0; f.box[sel].y:= 0;
   f.box[sel].w:= 0; f.box[sel].h:= 0;
  ELSE
-  w:= x1-x0+1;   (* Breite und HÃ¶he des Characters berechnen *)
+  w:= x1-x0+1;   (* Breite und Höhe des Characters berechnen *)
   h:= y1-y0+1;
   nob:= ((w+7) DIV 8 )*h;
   actnob:= ((f.box[sel].w+7) DIV 8)* f.box[sel].h;
-  d:= nob-actnob;  (* Mehr oder weniger (+-d) Rasterdaten fÃ¼r Character nÃ¶tig => Raster shiften *)
+  d:= nob-actnob;  (* Mehr oder weniger (+-d) Rasterdaten für Character nötig => Raster shiften *)
   IF (d#0) & (f.p[sel]#undef) THEN
    i:= sel+1; WHILE (i<=255) & (f.p[i]=undef) DO INC(i) END;
    IF i#256 THEN (* Shift *)
@@ -486,7 +486,7 @@ BEGIN
      FOR j:= f.p[i] TO f.pos-1 DO f.raster[j+d]:= f.raster[j] END
     END;
     j:= sel+1;
-    WHILE j<256 DO IF f.p[j]#undef THEN f.p[j]:= f.p[j]+d END; INC(j) END (* Pointer in Raster nachfÃ¼hren *)
+    WHILE j<256 DO IF f.p[j]#undef THEN f.p[j]:= f.p[j]+d END; INC(j) END (* Pointer in Raster nachführen *)
    END;
    f.pos:= f.pos+d;
   ELSIF f.p[sel]=undef THEN
@@ -956,7 +956,7 @@ BEGIN
     END;
     x:= x+ f.box[sel].dx
    END;
-  END; (* Document Ã¶ffnen *)
+  END; (* Document öffnen *)
   NEW(doc); doc.Load:= LoadDoc; doc.Store:= StoreDoc; doc.handle:= DocHandler;
   Objects.NewObj:= doc;
   NEW(F); 
@@ -1249,7 +1249,7 @@ BEGIN
  END
 END Store;
 
-(** Handler fÃ¼r mittlere Maustaste *)
+(** Handler für mittlere Maustaste *)
 PROCEDURE MoveMetric*;
 BEGIN
  fonttrackMM:= HandleMetric;

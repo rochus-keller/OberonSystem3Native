@@ -1,7 +1,7 @@
 (* ETH Oberon, Copyright 1990-2003 Computer Systems Institute, ETH Zurich, CH-8092 Zurich.
 Refer to the license.txt file provided with this distribution. *)
 
-MODULE VNCViewers; (** JÃ¶rg KreienbÃ¼hl    **)
+MODULE VNCViewers; (** Jörg Kreienbühl    **)
 (** VNC-Viewer for the AT&T (orig. Olivetti) VNC-Server from http://www.uk.research.att.com/vnc/
  Inherits from ImageGadget which displays an Images.Image as Model.
  The job of this viewer is to send the Input-Events. The Update is done by the VNCTask. *)

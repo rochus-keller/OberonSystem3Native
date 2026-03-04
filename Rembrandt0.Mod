@@ -3,8 +3,8 @@ Refer to the license.txt file provided with this distribution. *)
 
 MODULE Rembrandt0; (** portable *)
 
-(** Dieses Modul enthÃ¤lt div. Prozeduren fÃ¼r den Rembrandt-Editor und Farboperationen, die auch in weiteren
- Modulen gebraucht werden kÃ¶nnen. Einige Prozeduren und Variablen sind aus dem Backdrops-Modul Ã¼bernommen
+(** Dieses Modul enthält div. Prozeduren für den Rembrandt-Editor und Farboperationen, die auch in weiteren
+ Modulen gebraucht werden können. Einige Prozeduren und Variablen sind aus dem Backdrops-Modul übernommen
  worden, da dieses Modul nun auch auf Rembrandt basiert *)
 
 (*
@@ -17,7 +17,7 @@ IMPORT
 TYPE
  ColFrame*= POINTER TO ColFrameDesc;
  ColFrameDesc* = RECORD (Gadgets.FrameDesc)
-   col*: INTEGER;  (* fÃ¼r Version 1.6 *)
+   col*: INTEGER;  (* für Version 1.6 *)
          END;
 
  Color*= POINTER TO ColorDesc;
@@ -30,9 +30,9 @@ CONST
 
 VAR
  Z: LONGINT;
- color*: Color;       (** Aktuelle Farbe fÃ¼r Rembrandt-Editor *)
- noc*, maxnoc* : INTEGER;  (** Anzahl Farben fÃ¼r Backdrops / Maximale Anzahl Farben auf Bildschirm verfÃ¼gbar *)
- coltable*: ARRAY max OF RECORD r*, g*, b*: INTEGER END; (** Farbpalette fÃ¼r Backdrops *)
+ color*: Color;       (** Aktuelle Farbe für Rembrandt-Editor *)
+ noc*, maxnoc* : INTEGER;  (** Anzahl Farben für Backdrops / Maximale Anzahl Farben auf Bildschirm verfügbar *)
+ coltable*: ARRAY max OF RECORD r*, g*, b*: INTEGER END; (** Farbpalette für Backdrops *)
 
  (* floyd *)
  r, g, b, rpal, gpal, bpal: ARRAY 256 OF INTEGER;
@@ -229,7 +229,7 @@ BEGIN
  END
 END HSVtoRGB;
 
-(** VerÃ¤ndert die Farben eines Pictures mit den gegebenen Parameter *)
+(** Verändert die Farben eines Pictures mit den gegebenen Parameter *)
 PROCEDURE Reduce*(S, D: Pictures.Picture; ds, dv: REAL);
 VAR rr, gr, br, hr, sr, vr  : REAL;
   i, r, g, b, maxc, h : INTEGER;
@@ -279,7 +279,7 @@ BEGIN
  END   
 END Reduce;
 
-(** Colorgadgets fÃ¼r Farbanzeige im Rembrandt-Panel **)
+(** Colorgadgets für Farbanzeige im Rembrandt-Panel **)
 PROCEDURE HandleColor* (obj: Objects.Object; VAR M: Objects.ObjMsg);
 VAR red, green, blue: INTEGER;
 BEGIN
@@ -407,7 +407,7 @@ BEGIN
  IF (w>0) & (h>0) THEN Pictures.ReplConst(P, col, x, y, w, h, Display.replace) END
 END ReplConst;
 
-(** Speicherblock fÃ¼r Picture allozieren oder Fehlermeldung ausgeben **)
+(** Speicherblock für Picture allozieren oder Fehlermeldung ausgeben **)
 PROCEDURE AllocatePictureMem*(VAR P: Pictures.Picture; w, h, d: INTEGER);
 BEGIN
  Pictures.Create(P, w, h, d);
@@ -416,7 +416,7 @@ BEGIN
  END
 END AllocatePictureMem;
 
-(** Best Match fÃ¼r gesuchten Farbwert in der aktuellen Farbpalette **)
+(** Best Match für gesuchten Farbwert in der aktuellen Farbpalette **)
 PROCEDURE NearestColor*(r, g, b: LONGINT): INTEGER;
 VAR d, t, min: LONGINT; col, i: INTEGER;
 BEGIN
@@ -439,7 +439,7 @@ VAR gval: REAL;
  RETURN SHORT(ENTIER(256*gval))
 END Gamma;
 
-(** Farbpalette Ã¤ndern **)
+(** Farbpalette ändern **)
 PROCEDURE Darken*;
 VAR i, r, g, b: INTEGER; gamma: REAL;
 BEGIN
@@ -502,7 +502,7 @@ BEGIN
  Gadgets.Update(color)
 END ResetAll;
 
-(** Einzelne Farbe auf Standardwert zurÃ¼ckgesetzt **)
+(** Einzelne Farbe auf Standardwert zurückgesetzt **)
 PROCEDURE ResetOne*;
 VAR F: Files.File;
   R: Files.Rider;

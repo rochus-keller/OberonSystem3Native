@@ -3,9 +3,9 @@ Refer to the license.txt file provided with this distribution. *)
 
 MODULE Backdrops; (** portable *) (* Daniel Ponti Jan 94 *)
           (* Revidiert:  Jan 95 Daniel Ponti
-          Ã„nderungen: Basiert nun auf Rembrandt0 und RembrandtDocs Modul *)
+          Änderungen: Basiert nun auf Rembrandt0 und RembrandtDocs Modul *)
 
-(** Dieses Modul enthÃ¤lt alle Backdrop-Algorithmen und verwaltet die zugehÃ¶rigen Farbpaletten *)
+(** Dieses Modul enthält alle Backdrop-Algorithmen und verwaltet die zugehörigen Farbpaletten *)
 
 IMPORT 
  Texts, Oberon, Pictures, Rembrandt0, Rembrandt, Display, Math, Input, Gadgets, Objects,
@@ -71,7 +71,7 @@ BEGIN
  END
 END SetVal;
 
-(** Setzt Farben fÃ¼r Wolkenstruktur *)
+(** Setzt Farben für Wolkenstruktur *)
 PROCEDURE SetSkyColor*();
 VAR i : INTEGER;
 BEGIN
@@ -83,7 +83,7 @@ BEGIN
  END
 END SetSkyColor;
 
-(** Setzt Farben fÃ¼r Marmorstruktur *)
+(** Setzt Farben für Marmorstruktur *)
 PROCEDURE SetMarbleColor*();
 VAR i, h : INTEGER;
 BEGIN
@@ -108,7 +108,7 @@ BEGIN
  Rembrandt0.color.col:=0; Gadgets.Update(Rembrandt0.color)
 END SetBackground;
 
-(** Eine einzelne Farbe kann geÃ¤ndert werden; Farbnummer colno mit RGB(r, g, b); wird zur Zeit nicht verwendet *)
+(** Eine einzelne Farbe kann geändert werden; Farbnummer colno mit RGB(r, g, b); wird zur Zeit nicht verwendet *)
 PROCEDURE SetColor*();
 VAR S : Texts.Scanner;
   colno, r, g, b : INTEGER;
@@ -128,7 +128,7 @@ BEGIN
  Rembrandt0.coltable[colno].b:= b
 END SetColor;
 
-(** Setzt die Anzahl Farben fÃ¼r Farbrampen *)
+(** Setzt die Anzahl Farben für Farbrampen *)
 PROCEDURE SetNoColor*();
 VAR S : Texts.Scanner;
 BEGIN
@@ -153,8 +153,8 @@ BEGIN
 END Random;
 
 PROCEDURE CheckKeyboard(): BOOLEAN;
-(* liefert TRUE zurÃ¼ck falls wÃ¤hrend dem Zeichnen eine definierte
- Taste gedrÃ¼ckt wurde oder eine Mousetaste*)
+(* liefert TRUE zurück falls während dem Zeichnen eine definierte
+ Taste gedrückt wurde oder eine Mousetaste*)
 CONST Quit=27; (* ESC_Taste *)
 VAR ch: CHAR;
   x, y : INTEGER;
@@ -182,13 +182,13 @@ BEGIN
 END Initcolor; 
 
 PROCEDURE Integer(name : ARRAY OF CHAR): INTEGER;
-(* Liefert aktuelle Zahl des gesuchten Modells zurÃ¼ck *)
+(* Liefert aktuelle Zahl des gesuchten Modells zurück *)
 VAR obj, cont : Objects.Object; 
 BEGIN
  cont:= Gadgets.context; obj:= NIL;
  WHILE (cont#NIL) & (obj=NIL) DO
   obj:= Gadgets.FindObj(cont, name);
-  cont:= cont.dlink; (* Aufruf des Befehls aus einem "hÃ¶heren" Panel *)
+  cont:= cont.dlink; (* Aufruf des Befehls aus einem "höheren" Panel *)
  END;
  IF obj#NIL THEN
   RETURN SHORT(obj(BasicGadgets.Integer).val)
@@ -198,13 +198,13 @@ BEGIN
 END Integer;
 
 PROCEDURE Real(name : ARRAY OF CHAR): REAL;
-(* Liefert aktuelle Zahl des gesuchten Modells zurÃ¼ck *)
+(* Liefert aktuelle Zahl des gesuchten Modells zurück *)
 VAR obj, cont : Objects.Object; 
 BEGIN
  cont:= Gadgets.context; obj:= NIL;
  WHILE (cont#NIL) & (obj=NIL) DO
   obj:= Gadgets.FindObj(cont, name);
-  cont:= cont.dlink; (* Aufruf des Befehls aus einem "hÃ¶heren" Panel *)
+  cont:= cont.dlink; (* Aufruf des Befehls aus einem "höheren" Panel *)
  END;
  IF obj#NIL THEN
   RETURN SHORT(obj(BasicGadgets.Real).val)
@@ -230,7 +230,7 @@ BEGIN
 END LoadPalette;
 
 PROCEDURE CreatePict(VAR P: Pictures.Picture);
-(* Gibt das markierte Picture zurÃ¼ck oder erstellt ein neues *)
+(* Gibt das markierte Picture zurück oder erstellt ein neues *)
 (* setzt die Farben *)
 VAR F: Rembrandt.Frame; 
 BEGIN
@@ -250,7 +250,7 @@ BEGIN
  Pictures.Update(P, 0, 0, px, py)
 END EmptyPicture;
 
-(** Dithert ein markiertes Picture mit zusÃ¤tzlicher Angabe der Helligkeit und SÃ¤ttigung als Parameter *)
+(** Dithert ein markiertes Picture mit zusätzlicher Angabe der Helligkeit und Sättigung als Parameter *)
 PROCEDURE Reduce*;
 VAR D: Pictures.Picture;
   ds, dv, r, g, b: INTEGER;
@@ -272,7 +272,7 @@ BEGIN
 END Reduce;
 
 PROCEDURE WraplConst(P: Pictures.Picture; col, x, y, w, h: INTEGER);
-(* Zeichnet ein gefÃ¼lltes Rechteck im Picture modulo HÃ¶he und Breite *)
+(* Zeichnet ein gefülltes Rechteck im Picture modulo Höhe und Breite *)
 BEGIN
  x:=x MOD px; y:= y MOD py;
   IF (x+w<px) & (y+h<py) THEN 
@@ -309,7 +309,7 @@ BEGIN
    END;
    i:= i+step
   END
- ELSE (* Bresenham-Methode fÃ¼r gefÃ¼llte Kreise *)
+ ELSE (* Bresenham-Methode für gefüllte Kreise *)
   x := r; y := 0; d := 2*r-1; dx := 4*r; dy := 0;
   WHILE y < r DO
    WHILE d <= 0 DO DEC(x); DEC(dx,4); INC(d,dx) END;
@@ -323,7 +323,7 @@ END Circle;
 PROCEDURE Ellipse(P: Pictures.Picture; a,b, xm, ym, col : INTEGER; both: BOOLEAN);
 (* Zeichnet eine Ellipse mit Mittelpunkt (xm,ym), Achsen a,b und Farbe col *)
 (* both=1: zeichnet ganze Ellipse *)
-(* both=0: zeichnet nur die obere HÃ¤lfte *)
+(* both=0: zeichnet nur die obere Hälfte *)
 VAR x, y1, y2, y, i, step : REAL;
 BEGIN
  i:= 0; step:= 0.5;
@@ -438,7 +438,7 @@ BEGIN
 END Fractal;
 
 PROCEDURE Initnoise();
-(* FÃ¼llt das Zufallszahlenfeld *)
+(* Füllt das Zufallszahlenfeld *)
 VAR x, y, xx, yy  : INTEGER;
 BEGIN
  FOR x:= 0 TO maxnoise DO
@@ -531,7 +531,7 @@ END turbulence;
  
 (** Dient zur Vorschau eines Backdrops *)
 PROCEDURE Preview*();
-CONST size=480;     (* GrÃ¶sse des Pictures *)
+CONST size=480;     (* Grösse des Pictures *)
 VAR i, j, sx, sy  : INTEGER;
   P : Pictures.Picture;
   F: Rembrandt.Frame;
@@ -949,7 +949,7 @@ BEGIN
 END Spirals;
 
 PROCEDURE Tree(P: Pictures.Picture; x,y, dir, col, count,max, len : INTEGER);
-(* Rekursion fÃ¼r Tree *)
+(* Rekursion für Tree *)
 VAR num, red : INTEGER; i: LONGINT;
 BEGIN
  IF count<max THEN

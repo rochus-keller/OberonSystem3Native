@@ -2,7 +2,7 @@
 Refer to the license.txt file provided with this distribution. *)
 
 MODULE Rembrandt; (** portable *)
-(** Ist das Hauptmodul fÃ¼r den Rembrandt-Editor *)
+(** Ist das Hauptmodul für den Rembrandt-Editor *)
 (* tk, picture-depth corrections 25.5.1995 *)
 (* jm, fixed Copy 4.12.95 *)
 (* ps, resize dep. of attr. Border 21.5.96 *)
@@ -15,13 +15,13 @@ IMPORT
  Input, Attributes;
 
 CONST
- (* Konstanten fÃ¼r Mouseklicks *)
+ (* Konstanten für Mouseklicks *)
  MM = 1;
  MR = 0;
  ML = 2;
  Cancel = {MM, MR, ML};
 
- (** ID's fÃ¼r Selection *)
+ (** ID's für Selection *)
  No* = 0;    (** Keine Selektion *) 
  Block* = 1;   (** Rectangle selektiert *)
  Image* = 2;   (** Ganzes Picture selektiert *)
@@ -42,22 +42,22 @@ TYPE
 
  Lockrec= RECORD
       scaledpict: Pictures.Picture;     (* Skaliertes Picture falls Gadget locked *)
-      lw, lh, lpx, lpy, actlw, actlh: INTEGER  (* OriginalframegrÃ¶sse ; aktuelle Abstand zu Ecke ; aktuelle FramegrÃ¶sse*)
+      lw, lh, lpx, lpy, actlw, actlh: INTEGER  (* Originalframegrösse ; aktuelle Abstand zu Ecke ; aktuelle Framegrösse*)
     END;
 
  Frame* = POINTER TO FrameDesc;
  FrameDesc* = RECORD (Gadgets.FrameDesc) 
   pict*: Pictures.Picture;
   px, py: INTEGER;   (* Position des Bildes innerhalb des Frames; Nullpkt. linke, obere Ecke *)
-  locked: BOOLEAN;  (* Pictures Ã¤ndern mÃ¶glich oder nicht *)
-  lockdata: Lockrec;  (* Daten fÃ¼r Zustand locked *)
+  locked: BOOLEAN;  (* Pictures ändern möglich oder nicht *)
+  lockdata: Lockrec;  (* Daten für Zustand locked *)
   border: BOOLEAN;  (* Rand sichtbar oder nicht *)
   selection*: INTEGER; 
   sx*, sy*, sw*, sh*: INTEGER; (** Selektionsbereich *)
-  selstruct: Element;       (* Beliebige FlÃ¤che selektiert *)
+  selstruct: Element;       (* Beliebige Fläche selektiert *)
   seloutline: Element;   (* Darstellung des selektierten *)
   selcolor: INTEGER;  (* Selektionsfarbe *)
-  selcol: INTEGER;    (* Farbe der FlÃ¤che *)
+  selcol: INTEGER;    (* Farbe der Fläche *)
   seltime: LONGINT;
   selpict: Pictures.Picture;
   car* : BOOLEAN;
@@ -66,7 +66,7 @@ TYPE
   zoom: INTEGER;    (* Zoomweite: 1=normal *)
   grid: BOOLEAN;    (* Rasterlinien *)
   time: LONGINT;
-  col*: INTEGER;  (* fÃ¼r Version 1.6 *)
+  col*: INTEGER;  (* für Version 1.6 *)
  END;
 
  TrackMMProc* = PROCEDURE (F: Frame; VAR M: Oberon.InputMsg; x, y: INTEGER);
@@ -89,15 +89,15 @@ TYPE
       END;
 
 VAR
- trackMM*: TrackMMProc;  (** Handler fÃ¼r Operationen *)
- trackSelMM*: RECORD   (** Handler fÃ¼r Selektionsoperationen *)
+ trackMM*: TrackMMProc;  (** Handler für Operationen *)
+ trackSelMM*: RECORD   (** Handler für Selektionsoperationen *)
         id*: SHORTINT;
         track*: TrackMMProc
       END;
- undo (*, redo *): Region; (* Picture fÃ¼r letzte Ã„nderung rÃ¼ckgÃ¤ngig machbar *)
+ undo (*, redo *): Region; (* Picture für letzte Änderung rückgängig machbar *)
  cursor*: Oberon.Marker;
  seltype: INTEGER;
- selcolor*: INTEGER;  (** Farbe fÃ¼r Selektion *)
+ selcolor*: INTEGER;  (** Farbe für Selektion *)
  clipboard: RECORD
       id, col: INTEGER;
       P: Pictures.Picture;
@@ -105,7 +105,7 @@ VAR
       sw, sh: INTEGER;
       Paste: PROCEDURE(D: Pictures.Picture; dx, dy: INTEGER);
      END;
- seldir: ARRAY 4 OF RECORD dx, dy, ind: SHORTINT END; (* Hilfsarray fÃ¼r Outlinebestimmung von bel. Selektion *)
+ seldir: ARRAY 4 OF RECORD dx, dy, ind: SHORTINT END; (* Hilfsarray für Outlinebestimmung von bel. Selektion *)
 
 PROCEDURE ^ NewP*(F: Frame;pict: Pictures.Picture);
 
@@ -129,7 +129,7 @@ BEGIN
  Display.Broadcast(M)
 END SizeFrame;
 
-(** Handler fÃ¼r Attribute *)
+(** Handler für Attribute *)
 PROCEDURE FrameAttributes*(F: Frame; VAR M: Objects.AttrMsg);
 VAR L: Lockrec; old: BOOLEAN;
 BEGIN
@@ -297,7 +297,7 @@ BEGIN
  WHILE i< ASH(1, S.depth) DO Pictures.GetColor(S, i, r, g, b); Pictures.SetColor(D, i, r, g, b); INC(i) END
 END CopyPalette;
 
-(** Gibt die letzte Selektion in Form eines Pictures zurÃ¼ck *)
+(** Gibt die letzte Selektion in Form eines Pictures zurück *)
 PROCEDURE GetSelectedPict*(VAR P: Pictures.Picture; VAR x, y, w, h: INTEGER);
 VAR F: Frame;
   time: LONGINT;
@@ -328,7 +328,7 @@ BEGIN
  END
 END GetSelectedPict;
 
-(** Gibt Selektion innerhalb eines bestimmten Frames zurÃ¼ck *)
+(** Gibt Selektion innerhalb eines bestimmten Frames zurück *)
 PROCEDURE GetSelectioninFrame*(F: Frame; VAR P: Pictures.Picture; VAR x, y, w, h: INTEGER);
 VAR act: Element;
 BEGIN
@@ -927,7 +927,7 @@ BEGIN
   Input.Mouse(M.keys, M.X, M.Y);
   keysum:= keysum+M.keys;
  UNTIL M.keys={};
- IF keysum={MR, ML} THEN (* Selektion lÃ¶schen *)
+ IF keysum={MR, ML} THEN (* Selektion löschen *)
   SavePicture(F.pict, F.sx, F.sy, F.sw, F.sh);
   act:= F.selstruct;
   WHILE act#NIL DO
@@ -1109,7 +1109,7 @@ BEGIN
    ProcessList(F, list);
    F.sx:= ofsx; F.sy:= ofsy; F.sw:= ofsw; F.sh:= ofsh;
    F.selcol:= Rembrandt0.color.col;
-   IF keysum = {MR, ML} THEN (* Selektion lÃ¶schen *)
+   IF keysum = {MR, ML} THEN (* Selektion löschen *)
     SavePicture(F.pict, F.sx, F.sy, F.sw, F.sh);
     WHILE list#NIL DO Pictures.ReplConst(F.pict, D3.BG, F.sx+list.x, F.sy+list.y, list.w, 1, Display.replace); list:= list.next END;
     Pictures.Update(F.pict, F.sx, F.sy, F.sw, F.sh)
@@ -1161,8 +1161,8 @@ BEGIN
  END
 END UndoRedo; *)
 
-(** Undo; kopiert den zuvor gesicherten Bereich ins entsprechende Picture zurÃ¼ck *)
-PROCEDURE Undo*; (* Redo fÃ¼r 1 Level gleich *)
+(** Undo; kopiert den zuvor gesicherten Bereich ins entsprechende Picture zurück *)
+PROCEDURE Undo*; (* Redo für 1 Level gleich *)
 VAR p: Pictures.Picture;
 BEGIN
  (* UndoRedo(undo, redo) *)
@@ -1192,7 +1192,7 @@ BEGIN
  END; 
  dx:=0; 
  IF ch=0DX THEN
-  (* Return-Taste gedrÃ¼ckt *)
+  (* Return-Taste gedrückt *)
   py:= py-lib(Fonts.Font).height;
   px:= px-F.string.len;
   F.string.len:=0
@@ -1249,7 +1249,7 @@ BEGIN
  END
 END CopyOver;
 
-(** Aufspannen eines Rechtecks mit der Maus; analog Effects.SizeRect jedoch zusÃ¤tzlich mit Prozentangabe falls info=TRUE *)
+(** Aufspannen eines Rechtecks mit der Maus; analog Effects.SizeRect jedoch zusätzlich mit Prozentangabe falls info=TRUE *)
 PROCEDURE SizeRect*(F: Frame; x, y: INTEGER; Q: D3.Mask; VAR keysum: SET; VAR mx, my, sx, sy, sw, sh: INTEGER; info: BOOLEAN);
 VAR keys: SET; ox, oy, opx, opy, dz, oldsw, oldsh, cmx, cmy: INTEGER; disptext: ARRAY 22 OF CHAR;
 
@@ -1327,7 +1327,7 @@ BEGIN
  sw:= sw DIV F.zoom; sh:= sh DIV F.zoom; 
 END SizeRect;
 
-(** Handler fÃ¼r rechte Maustaste *)
+(** Handler für rechte Maustaste *)
 PROCEDURE TrackSelection*(F: Frame; VAR M: Oberon.InputMsg; x, y, w, h: INTEGER);
 VAR Q: D3.Mask; cM: Display.ConsumeMsg; ox, oy, fx, fy, oldsel: INTEGER; P: Pictures.Picture;
   F0: Frame;
@@ -1358,7 +1358,7 @@ BEGIN
    F.sx:= 0; F.sy:=0; F.sw:= F.pict.width; F.sh:= F.pict.height;
    SetSelection(F, Image);
   ELSIF (M.keys= {MR, ML}) THEN
-   (* Selektion lÃ¶schen *)
+   (* Selektion löschen *)
    ScreentoPict(F, x, y, fx, fy, ox, oy); 
    IF ox<0 THEN F.sw:= F.sw+ox; ox:= 0 END;
    IF oy<0 THEN F.sh:= F.sh+oy; oy:= 0 END;
@@ -1977,7 +1977,7 @@ BEGIN
  cursor:= Effects.Cross 
 END Move;
 
-(** Operation Stamp fÃ¼r Clipboard *)
+(** Operation Stamp für Clipboard *)
 PROCEDURE ClipboardStamp*;
 BEGIN
  trackMM:= HandleStamp;
@@ -2115,7 +2115,7 @@ BEGIN
  cursor:= Effects.Cross
 END FreehandSelect;
 
-(** Generiert Pattern-Code aus der letzten Block-Selektion; sollte nicht grÃ¶sser als 32*32 sein *)
+(** Generiert Pattern-Code aus der letzten Block-Selektion; sollte nicht grösser als 32*32 sein *)
 PROCEDURE MakePattern*;
 VAR F: Frame; P: Pictures.Picture; sx, sy, sw, sh, x0, x1, y: INTEGER;
   time: LONGINT; first: BOOLEAN;
@@ -2280,7 +2280,7 @@ BEGIN
  Objects.NewObj := F; 
 END New;
 
-(** FÃ¼gt ein als Parameter angegebenes Picture als Rembrandt-Frame in ein Panel ein *)
+(** Fügt ein als Parameter angegebenes Picture als Rembrandt-Frame in ein Panel ein *)
 PROCEDURE Insert*;
 VAR F: Frame;
   P: Pictures.Picture;

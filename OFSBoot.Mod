@@ -165,6 +165,7 @@ BEGIN
 END BootSystem;
 
 BEGIN
+ Kernel.Hello("OFSBoot");
  OpenVolumes;
  BootSystem
 END OFSBoot.

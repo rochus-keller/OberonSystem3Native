@@ -43,9 +43,9 @@ CONST
  chrleft* = -4; (* Mindestens eine schliessende Klammer ")", "]", "}" zuviel *)
  wsubexpr* = -5; (* Falscher Teilausdruck-Identifier *)
  subexprrest* = -6; (* Teilausdruck von { }-Klammernpaar umgeben *)
- wshorthand* = -7; (* Falscher AbkÃ¼rzungs-Identifier *)
+ wshorthand* = -7; (* Falscher Abkürzungs-Identifier *)
  notnotexp* = -8; (* Notoperator kann nicht angewendet werden *)
- nodfa* = -9; (* Replace unmÃ¶glich, da kein DFA vorhanden *)
+ nodfa* = -9; (* Replace unmöglich, da kein DFA vorhanden *)
  repllinefull* = -10; (* Parameter line bei Replace ist voll *)
  linecopofl* = -11; (* Interne Variable linecop in Prozedur Replace ist zu klein *)
 
@@ -482,7 +482,7 @@ BEGIN
 END CalcStates;
 
 PROCEDURE Dump*( dfa : DFA; VAR w : Texts.Writer );
-(* Druckt den zu dfa gehÃ¶rigen Automaten im System.Log Viewer aus. *)
+(* Druckt den zu dfa gehörigen Automaten im System.Log Viewer aus. *)
 
  VAR i, j : INTEGER;
 BEGIN
@@ -508,10 +508,10 @@ END Dump;
 
 PROCEDURE New*( rx : ARRAY OF CHAR; VAR dfa : DFA; VAR error, pos : INTEGER);
 (*
-  Konstruiert den passenden deterministischen endlichen Automaten dfa zum regulÃ¤ren Ausdruck rx.
+  Konstruiert den passenden deterministischen endlichen Automaten dfa zum regulären Ausdruck rx.
   error > 0 : character ( CHR( error ) ) wird an der Position pos in rx verlangt.
   error = 0 : Automat konstruiert.
-  error < 0 : error enthÃ¤lt den Wert der entsprechenden Fehlerkonstante des in rx an der
+  error < 0 : error enthält den Wert der entsprechenden Fehlerkonstante des in rx an der
         Position pos aufgetretenen Fehlers.
 *)
 
@@ -551,10 +551,10 @@ END New;
 
 PROCEDURE Search*( dfa : DFA; line : ARRAY OF CHAR; VAR beg, end : INTEGER );
 (*
-  Sucht in line ab der Position beg den durch dfa bestimmten regulÃ¤ren Ausdruck.
-  end >= 0 : [beg, end[ ist der erste ( ab Suchposition beg ) und lÃ¤ngste Bereich, der dem
-         gesuchten reglÃ¤ren Ausdruck entspricht.
-  end < 0   : RegulÃ¤rer Ausdruck in line nicht gefunden.
+  Sucht in line ab der Position beg den durch dfa bestimmten regulären Ausdruck.
+  end >= 0 : [beg, end[ ist der erste ( ab Suchposition beg ) und längste Bereich, der dem
+         gesuchten reglären Ausdruck entspricht.
+  end < 0   : Regulärer Ausdruck in line nicht gefunden.
 *)
 
  VAR state, i, pos, ch : INTEGER;
@@ -618,12 +618,12 @@ END Search;
 PROCEDURE Replace*( dfa : DFA; VAR line : ARRAY OF CHAR; replpat : ARRAY OF CHAR;
           beg, end : INTEGER; VAR error, pos : INTEGER );
 (*
-  Ersetzt das StÃ¼ck [beg, end[ in line durch replpat. linecop muss eine Kopie von line sein.
-  error > 0 : character ( CHR( error ) ) wird an der Position pos in replpat verlangt. line bleibt unverÃ¤ndert.
-  error = 0 : replace erfolgreich, das StÃ¼ck [beg, end[ in line wurde durch ein StÃ¼ck [beg, pos[
+  Ersetzt das Stück [beg, end[ in line durch replpat. linecop muss eine Kopie von line sein.
+  error > 0 : character ( CHR( error ) ) wird an der Position pos in replpat verlangt. line bleibt unverändert.
+  error = 0 : replace erfolgreich, das Stück [beg, end[ in line wurde durch ein Stück [beg, pos[
           ersetzt.
-  error < 0 : error enthÃ¤lt den Wert der entsprechenden Fehlerkonstante des in replpat an der
-          Position pos aufgetretenen Fehlers. line bleibt unverÃ¤ndert.
+  error < 0 : error enthält den Wert der entsprechenden Fehlerkonstante des in replpat an der
+          Position pos aufgetretenen Fehlers. line bleibt unverändert.
 *)
 
  CONST noofchar = 1024;

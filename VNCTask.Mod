@@ -1,7 +1,7 @@
 (* ETH Oberon, Copyright 1990-2003 Computer Systems Institute, ETH Zurich, CH-8092 Zurich.
 Refer to the license.txt file provided with this distribution. *)
 
-MODULE VNCTask;   (** JÃ¶rg KreienbÃ¼hl    **)
+MODULE VNCTask;   (** Jörg Kreienbühl    **)
 (** Task for the VNC-Viewer, that periadically polls for new Frames and sents requests for them.
  Most of the viewers state is in the task, including the framebuffer image and the connection *)
 
@@ -364,12 +364,12 @@ BEGIN
  KeyTab[12].o := 0A8X; KeyTab[12].x := 0FF50H; (* Home *)
  KeyTab[13].o := 0A9X; KeyTab[13].x := 0FF57H; (* End *)
  
- KeyTab[14].o := 'Ã¤'; KeyTab[14].x := 0E4H;
- KeyTab[15].o := 'Ã¶'; KeyTab[15].x := 0F6H;
- KeyTab[16].o := 'Ã¼'; KeyTab[16].x := 0FCH;
- KeyTab[17].o := 'Ã„'; KeyTab[17].x := 0C4H;
- KeyTab[18].o := 'Ã–'; KeyTab[18].x := 0D6H;
- KeyTab[19].o := 'Ãœ'; KeyTab[19].x := 0DCH;
+ KeyTab[14].o := 'ä'; KeyTab[14].x := 0E4H;
+ KeyTab[15].o := 'ö'; KeyTab[15].x := 0F6H;
+ KeyTab[16].o := 'ü'; KeyTab[16].x := 0FCH;
+ KeyTab[17].o := 'Ä'; KeyTab[17].x := 0C4H;
+ KeyTab[18].o := 'Ö'; KeyTab[18].x := 0D6H;
+ KeyTab[19].o := 'Ü'; KeyTab[19].x := 0DCH;
 
 
  FastDelay := Input.TimeUnit DIV 2000;

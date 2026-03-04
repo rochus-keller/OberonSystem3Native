@@ -686,6 +686,7 @@ the garbage collector, if no mouse or keyboard events are arriving. *)
  END Init;
 
 BEGIN
+  Kernel.Hello("Oberon");
   Init;
   OptionChar := "\"; OpenText := NIL; CurTask := NIL;
   Arrow.Fade := FlipArrow; Arrow.Draw := FlipArrow;

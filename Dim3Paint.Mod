@@ -1,7 +1,7 @@
 (* ETH Oberon, Copyright 1990-2003 Computer Systems Institute, ETH Zurich, CH-8092 Zurich.
 Refer to the license.txt file provided with this distribution. *)
 
-MODULE Dim3Paint; (** portable *) (* David Ulrich Nov  95 - MÃ¤rz 96 *)
+MODULE Dim3Paint; (** portable *) (* David Ulrich Nov  95 - März 96 *)
 (** Dim3Paint covers the basic drawing functions of the module Dim3Engine. It includes color management and
       polygon drawing with and without the dynamic screen data structure **)
 

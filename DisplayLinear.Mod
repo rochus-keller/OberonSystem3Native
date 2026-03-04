@@ -1,7 +1,7 @@
 (* ETH Oberon, Copyright 1990-2003 Computer Systems Institute, ETH Zurich, CH-8092 Zurich.
 Refer to the license.txt file provided with this distribution. *)
 
- MODULE DisplayLinear; (* pjm *)
+MODULE DisplayLinear; (* pjm *)
 
 (*
 Linear framebuffer display driver for Aos. 

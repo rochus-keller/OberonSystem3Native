@@ -92,19 +92,19 @@ L1:
  DB 16X, "u", "U", 4X, 2FX, "v", "V", 4X, 11X, "w", "W", 4X, 2DX, "x", "X", 4X
  DB 15X, "y", "Y", 4X, 2CX, "z", "Z", 4X
   (* Oberon accents (LAlt & RAlt) *)
- DB 1EX, "Ã¤", "Ã„", 0CX, 12X, "Ã«", 0FFX, 0CX, 18X, "Ã¶", "Ã–", 0CX, 16X, "Ã¼", "Ãœ", 0CX
- DB 17X, "Ã¯", 0FFX, 0CX, 1FX, "ÃŸ", 0FFX, 0CX, 2EX, "Ã§", 0FFX, 0CX, 31X, "Ã±", 0FFX, 0CX
- DB 1EX, "Ã¤", "Ã„", 14X, 12X, "Ã«", 0FFX, 14X, 18X, "Ã¶", "Ã–", 14X, 16X, "Ã¼", "Ãœ", 14X
- DB 17X, "Ã¯", 0FFX, 14X, 1FX, "ÃŸ", 0FFX, 14X, 2EX, "Ã§", 0FFX, 14X, 31X, "Ã±", 0FFX, 14X
+ DB 1EX, "ä", "Ä", 0CX, 12X, "ë", 0FFX, 0CX, 18X, "ö", "Ö", 0CX, 16X, "ü", "Ü", 0CX
+ DB 17X, "ï", 0FFX, 0CX, 1FX, "ß", 0FFX, 0CX, 2EX, "ç", 0FFX, 0CX, 31X, "ñ", 0FFX, 0CX
+ DB 1EX, "ä", "Ä", 14X, 12X, "ë", 0FFX, 14X, 18X, "ö", "Ö", 14X, 16X, "ü", "Ü", 14X
+ DB 17X, "ï", 0FFX, 14X, 1FX, "ß", 0FFX, 14X, 2EX, "ç", 0FFX, 14X, 31X, "ñ", 0FFX, 14X
   (* dead keys (LAlt & RAlt) *)
  DB 07X, 0FFX, 1X, 9X, 28X, 2X, 5X, 9X, 29X, 3X, 4X, 9X,
  DB 07X, 0FFX, 1X, 11X, 28X, 2X, 5X, 11X, 29X, 3X, 4X, 11X,
   (* following keys *)
- DB 1EX, "Ã¢", 0FFX, 20X, 12X, "Ãª", 0FFX, 20X, 17X, "Ã®", 0FFX, 20X, 18X, "Ã´", 0FFX, 20X
- DB 16X, "Ã»", 0FFX, 20X, 1EX, "Ã ", 0FFX, 60X, 12X, "Ã¨", 0FFX, 60X, 17X, "Ã¬", 0FFX, 60X
- DB 18X, "Ã²", 0FFX, 60X, 16X, "Ã¹", 0FFX, 60X, 1EX, "Ã¡", 0FFX, 40X, 12X, "Ã©", 0FFX, 40X
- DB 1EX, "Ã¤", "Ã„", 0A4X, 12X, "Ã«", 0FFX, 0A0X, 17X, "Ã¯", 0FFX, 0A0X, 18X, "Ã¶", "Ã–", 0A4X
- DB 16X, "Ã¼", "Ãœ", 0A4X, 31X, "Ã±", 0FFX, 80X
+ DB 1EX, "â", 0FFX, 20X, 12X, "ê", 0FFX, 20X, 17X, "î", 0FFX, 20X, 18X, "ô", 0FFX, 20X
+ DB 16X, "û", 0FFX, 20X, 1EX, "à", 0FFX, 60X, 12X, "è", 0FFX, 60X, 17X, "ì", 0FFX, 60X
+ DB 18X, "ò", 0FFX, 60X, 16X, "ù", 0FFX, 60X, 1EX, "á", 0FFX, 40X, 12X, "é", 0FFX, 40X
+ DB 1EX, "ä", "Ä", 0A4X, 12X, "ë", 0FFX, 0A0X, 17X, "ï", 0FFX, 0A0X, 18X, "ö", "Ö", 0A4X
+ DB 16X, "ü", "Ü", 0A4X, 31X, "ñ", 0FFX, 80X
   (* numbers at top *)
  DB 0BX, "0", ")", 0X, 02X, "1", "!", 0X, 03X, "2", "@", 0X, 04X, "3", "#", 0X
  DB 05X, "4", "$", 0X, 06X, "5", "%", 0X, 07X, "6", "^", 0X, 08X, "7", "&", 0X

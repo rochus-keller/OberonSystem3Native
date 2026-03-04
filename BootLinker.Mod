@@ -16,10 +16,10 @@ MODULE BootLinker; (** non-portable *) (** JdV / dVdW / pjm / prk *)
   - Thomas Kistler (kistler@inf.ethz.ch)
 
  Original version for the Eamon system:
-  - Patrik Reali (prk), ETH ZÃ¼rich (reali@inf.ethz.ch)
+  - Patrik Reali (prk), ETH Zürich (reali@inf.ethz.ch)
   
  This version for the Femto system:
-  - Patrik Reali (prk), ETH ZÃ¼rich (reali@inf.ethz.ch)
+  - Patrik Reali (prk), ETH Zürich (reali@inf.ethz.ch)
  
  Eamon -> Femto:
   - remove lock optimization: \check, \curproc are not used anymore. (also the magic offset)

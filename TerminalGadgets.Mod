@@ -1,7 +1,7 @@
 (* ETH Oberon, Copyright 1990-2003 Computer Systems Institute, ETH Zurich, CH-8092 Zurich.
 Refer to the license.txt file provided with this distribution. *)
 
-MODULE TerminalGadgets; (** portable *) (* ww 5 Jun 92, dk, MÃ¤rz 94, rs 21-Apr-1994*)
+MODULE TerminalGadgets; (** portable *) (* ww 5 Jun 92, dk, März 94, rs 21-Apr-1994*)
 
 IMPORT Objects, Terminals, Oberon, Texts, Display, Display3, Gadgets, Fonts, Input, Printer, Printer3;
 

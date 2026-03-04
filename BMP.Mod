@@ -39,7 +39,7 @@ MODULE BMP; (** portable *)
 
 (** BMP-File support (depth: 1, 4 and 8 / compression: RLE4 and RLE8) / ps 2.8.96 *)
 (* BMP
- original code from M. DÃ¤twyler
+ original code from M. Dätwyler
 *)
 
 PROCEDURE WriteError (str: ARRAY OF CHAR);

@@ -1,7 +1,7 @@
 (* ETH Oberon, Copyright 1990-2003 Computer Systems Institute, ETH Zurich, CH-8092 Zurich.
 Refer to the license.txt file provided with this distribution. *)
 
-MODULE Dim3Frames; (** portable *) (* David Ulrich Nov 95 - MÃ¤rz 96 *)
+MODULE Dim3Frames; (** portable *) (* David Ulrich Nov 95 - März 96 *)
 (** This module implements a 3D Engine frame and gadget **)
 
 IMPORT
