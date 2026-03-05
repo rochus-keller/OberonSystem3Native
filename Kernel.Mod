@@ -3124,29 +3124,8 @@ END SwitchToLevel3;
 
 (* Init code called from OBL.  EAX = boot table offset.  2k stack is available. *)
 
-
-PROCEDURE Print(str: ARRAY OF CHAR);
-VAR i: LONGINT; ch: CHAR;
-BEGIN
-  i := 0;
-  ch := str[i];
-  WHILE ch # 0X DO
-    (*RawOut.Char(ch); works *)
-    SYSTEM.PORTOUT(0E9H, ch); (* works as well*)
-    INC(i);
-    ch := str[i]
-  END;
-END Print;
-
-PROCEDURE Hello*(str: ARRAY OF CHAR);
-BEGIN
-  Print("Hello from ");
-  Print(str);
-  SYSTEM.PORTOUT(0E9H, 0AX);
-END Hello;
   
 BEGIN
- Hello("Kernel");
  tspeed := 0;  traceBufAdr := 0;  timer := NIL;
  traceConsole := FALSE;  shutdown := 0;  tlpt := 0;
  ReadBootTable; (* set memTop, pageheap, configadr *)

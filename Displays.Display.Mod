@@ -646,7 +646,6 @@ BEGIN
 END LoadDriver;
 
 BEGIN
- Kernel.Hello("Display");
  ASSERT((get = AosDisplays.get) & (set = AosDisplays.set));
  LoadDriver;
  NEW(buf, 8192);

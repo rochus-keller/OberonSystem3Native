@@ -13,3 +13,5 @@ From that we conclude that this version is indeed 2.3.7 alpha, even if nowhere m
 
 Changes
 - converted all files from Oberon format to utf-8 using ObxIDE
+- backconverte all files to Latin-1 to be compatible with OP2
+- refactored Kernel to use Multiboot instead of OBL, Host Console for tracing

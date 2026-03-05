@@ -285,7 +285,6 @@ BEGIN
 END New;
 
 BEGIN
- Kernel.Hello("OFSDiskVolumes");
  cdid := "?CD001?EL TORITO SPECIFICATION?";
  cdid[0] := 0X; cdid[6] := 1X; cdid[30] := 0X; cdid[31] := 0X
 END OFSDiskVolumes.
