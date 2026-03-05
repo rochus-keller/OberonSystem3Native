@@ -3,6 +3,8 @@ Refer to the license.txt file provided with this distribution. *)
 
 MODULE Modules; (** portable, except where noted *) (* rc/mh/jm/tk/ard/rml/prk/pjm *)
 
+(* NOTE: this module can be split into a portable and i386 part *)
+
 (**
  The Modules module implements the dynamic module loader of the Oberon system. 
  It is responsible for loading and freeing modules.

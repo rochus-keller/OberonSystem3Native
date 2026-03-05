@@ -15,3 +15,4 @@ Changes
 - converted all files from Oberon format to utf-8 using ObxIDE
 - backconverte all files to Latin-1 to be compatible with OP2
 - refactored Kernel to use Multiboot instead of OBL, Host Console for tracing
+- refactored source tree, separated true i386 from portable files
