@@ -1,0 +1,6 @@
+355 of the 358 modules from i386 and portable (not including the 50 unuseds) 
+compile and the resulting system seems to work.
+The three missing modules are OFSFat*.Mod which give compiler errors.
+
+A complete build including creating the drive and uploading all files takes 
+51 seconds on my Lenovo T480 with Debian Bookworm x64.
