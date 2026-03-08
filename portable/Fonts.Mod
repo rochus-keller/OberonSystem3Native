@@ -58,6 +58,8 @@ of characters, each character being a pattern and and metric data.
  BEGIN Files.Read(R, c0); Files.Read(R, s1); x := s1; x := x * 100H + ORD(c0)
  END ReadInt;
 
+(*
+ (* i386 version *)
  PROCEDURE *GetCharObj (L: Objects.Library; ref: INTEGER; VAR obj: Objects.Object);
  CODE {SYSTEM.i386}
   MOV EAX, L[EBP]
@@ -79,8 +81,8 @@ of characters, each character being a pattern and and metric data.
   MOV EAX, obj[EBP]
   MOV [EAX], ECX
  END GetCharObj;
+*)
 
-(*
  (* portable version *)
  PROCEDURE GetCharObj (L: Objects.Library; ref: INTEGER; VAR obj: Objects.Object); 
  VAR m: LONGINT; h1: SHORTINT; h2: LONGINT; ch: CHAR;
@@ -95,7 +97,6 @@ of characters, each character being a pattern and and metric data.
   SYSTEM.GET(h2+1,ch); theChar.h := ORD(ch);
   obj := theChar
  END GetCharObj;
-*)
 
 (** Return the character and data of ch in a font. *)
  PROCEDURE GetChar* (F: Font; ch: CHAR; VAR dx, x, y, w, h: INTEGER; VAR pat: Display.Pattern);
