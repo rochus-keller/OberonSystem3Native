@@ -210,8 +210,8 @@ Most entities in Oberon are derived from this base type.
 
 (* Check if end of s matches ext.  len returns length of ext. *)
 
- PROCEDURE Match(VAR s, ext: ARRAY OF CHAR; VAR len: INTEGER): BOOLEAN;
- VAR i, j: INTEGER;
+ PROCEDURE Match(VAR s, ext: ARRAY OF CHAR; VAR len: LONGINT): BOOLEAN;
+ VAR i, j: LONGINT;
  BEGIN
   i := 0; WHILE ext[i] # 0X DO INC(i) END; len := i;
   j := 0; WHILE s[j] # 0X DO INC(j) END;
@@ -222,7 +222,7 @@ Most entities in Oberon are derived from this base type.
 
 (** Search, load and cache a public library. *)
   PROCEDURE ThisLibrary* (name: ARRAY OF CHAR): Library;
-    VAR L: Library; len, n, n0, t: INTEGER; proc: NewProc;  A: Alias;
+    VAR L: Library; n, n0: INTEGER; len, t: LONGINT; proc: NewProc;  A: Alias;
   BEGIN
     A := FirstAlias.next;
     WHILE (A # NIL) & (name # A.name) DO A := A.next END;
@@ -233,7 +233,7 @@ Most entities in Oberon are derived from this base type.
       WHILE (L # NIL) & (name # L.name) DO L := L.next END;
       IF L = NIL THEN
         n := nofreg; n0 := 0; len := -1;
-        WHILE n0 # nofreg DO (* find longest matching extension *)
+        WHILE n0 # nofreg DO
           IF Match(name, LibExt[n0], t) & (t >= len) THEN
             n := n0; len := t
           END;
@@ -279,7 +279,7 @@ Most entities in Oberon are derived from this base type.
 
 (** Register a new library file extension and its associated generator procedure. *)
   PROCEDURE Register* (ext: ARRAY OF CHAR; new: NewProc);
-    VAR n, len: INTEGER; L: Library;
+    VAR n: INTEGER; len: LONGINT; L: Library;
   BEGIN n := 0;
     WHILE (n # nofreg) & (ext # LibExt[n]) DO INC(n) END;
     IF n # nofreg THEN LibNew[n] := new
@@ -718,7 +718,8 @@ Most entities in Oberon are derived from this base type.
   END
   END PutName;
 
-BEGIN LibBlockId := 0DBX;
+BEGIN
+ LibBlockId := 0DBX;
  NEW(FirstLib);  FirstLib.next := NIL;
  NEW(FirstAlias);  FirstAlias.next := NIL;
  stamp := MIN(LONGINT);

@@ -45,8 +45,13 @@ of characters, each character being a pattern and and metric data.
  END Put1;
   
  PROCEDURE Put2 (VAR a: LONGINT; x: LONGINT);
- VAR y: INTEGER;
- BEGIN y := SHORT(x); SYSTEM.PUT(a, y); a := a + 2
+ VAR lo, hi: SHORTINT;
+ BEGIN
+  (* VAR a is not guaranteed to be properly aligned which is an issue on ARM32;
+     so we access the individual bytes here as a work-around *)
+  lo := SHORT(SHORT(x MOD 100H));
+  hi := SHORT(SHORT(x DIV 100H MOD 100H));
+  SYSTEM.PUT(a, lo); SYSTEM.PUT(a+1, hi); a := a + 2
  END Put2;
   
  PROCEDURE Put4 (VAR a: LONGINT; x: LONGINT);
@@ -55,7 +60,10 @@ of characters, each character being a pattern and and metric data.
 
  PROCEDURE ReadInt (VAR R: Files.Rider; VAR x: INTEGER);
  VAR c0: CHAR; s1: SHORTINT;
- BEGIN Files.Read(R, c0); Files.Read(R, s1); x := s1; x := x * 100H + ORD(c0)
+ BEGIN
+  Files.Read(R, c0);
+  Files.Read(R, s1);
+  x := s1; x := x * 100H + ORD(c0)
  END ReadInt;
 
 (*

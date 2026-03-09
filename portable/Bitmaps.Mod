@@ -14,7 +14,6 @@ IMPORT SYSTEM, Display;
 
 CONST
  BufSize = 10000H;
- Assembler = TRUE;
  
 TYPE 
  Bitmap* = POINTER TO BitmapDesc;
@@ -347,33 +346,6 @@ BEGIN
  END;
 END PutPix;
 
-PROCEDURE -Copy0(src, dst, hx, sw2, dw2: LONGINT);
-CODE {SYSTEM.i386}
- POP EDX ; dw2
- POP ECX ; sw2
- POP EBX ; hx
- POP EDI ; dst
- POP ESI ; src
- MOV EAX, EDX
- SHR EAX, 1
- PUSH EAX ; count
-for:
- MOV AL, [ESI]
- MOV [EDI], AL
- JMP while1
-while0:
- INC ESI
- SUB EBX, EDX
-while1:
- CMP EBX, 0
- JG while0
- INC EDI
- ADD EBX, ECX
- DEC DWORD [ESP]
- JNZ for
- POP EAX
-END Copy0;
-
 PROCEDURE Copy*(sB, dB: Bitmap; SX, SY, SW, SH, DX, DY, DW, DH, mode: INTEGER);
 VAR hx, hy, DW2, SW2, src, dst, i: LONGINT; dy: INTEGER; ch: CHAR;
 BEGIN
@@ -383,20 +355,16 @@ BEGIN
   dy := DY + DH; DW2 := 2 * DW; SW2 := 2 * SW;
   hy := 2*SH - DH; 
   WHILE DY < dy DO
-   IF Assembler THEN
-    Copy0(sB.address + SY*sB.wth + SX, dB.address + DY*dB.wth + DX, 2*SW - DW, SW2, DW2)
-   ELSE
     hx := 2*SW - DW;
     src := sB.address + SY*sB.wth + SX;
     dst := dB.address + DY*dB.wth + DX;
     FOR i := 1 TO DW DO
-     SYSTEM.GET(src, ch); SYSTEM.PUT(dst, ch);
-     WHILE hx > 0 DO INC(src); DEC(hx, DW2) END;
-     INC(dst); INC(hx, SW2)
-    END
-   END;
-   WHILE hy > 0 DO INC(SY); hy := hy - 2 * DH END;
-   INC(DY); hy := hy + 2*SH
+    SYSTEM.GET(src, ch); SYSTEM.PUT(dst, ch);
+    WHILE hx > 0 DO INC(src); DEC(hx, DW2) END;
+    INC(dst); INC(hx, SW2)
+    END;
+    WHILE hy > 0 DO INC(SY); hy := hy - 2 * DH END;
+    INC(DY); hy := hy + 2*SH
   END
  ELSE
   HALT(99)

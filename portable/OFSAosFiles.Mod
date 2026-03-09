@@ -1270,6 +1270,7 @@ BEGIN
  vol := OFS.NewVol; Kernel.SetLogMark;
  REPEAT OFS.ReadPar(ch) UNTIL ch # " ";
  i := 0;  WHILE (ch # 0X) & (ch # " ") DO prefix[i] := ch; INC(i); OFS.ReadPar(ch) END;
+ prefix[i] := 0X;
  IF OFS.This(prefix) = NIL THEN
   IF (vol.blockSize = SS) & (vol.size >= MinVolSize) THEN
    GetSector(vol, DirRootAdr, hp^);
