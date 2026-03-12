@@ -15,7 +15,7 @@ Reference: http://www.usb.org
                         (one has to pass an (empty) TReq record, this is not anymore allocated on the fly by Usb.Mod)
 *)
 
-MODULE Usb; (** non-portable **)  (** cp **)
+MODULE Usb; (** portable **)  (** cp **)
 
 IMPORT SYSTEM, Kernel;
 

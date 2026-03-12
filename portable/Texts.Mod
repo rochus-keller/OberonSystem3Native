@@ -230,7 +230,8 @@ TYPE
    R: Files.Rider;
    ch: CHAR;
  BEGIN
-  IF (p.ref >= 0) & (p.obj = NIL) & ~(p.lib IS Fonts.Font) THEN
+  (* NOTE RK: if we get crashes because of p.lib = NIL set it to Fonts.Default here; just for system bootstrapping *)
+  IF (p.lib # NIL) & (p.ref >= 0) & (p.obj = NIL) & ~(p.lib IS Fonts.Font) THEN
    T.obs.GetObj(T.obs, p.ref, p.obj);
    Files.Set(R, p.f, p.off); Files.Read(R, ch);
    p.lib.PutObj(p.lib, ORD(ch), p.obj)

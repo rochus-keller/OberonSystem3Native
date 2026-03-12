@@ -10,7 +10,7 @@ Reference: http://www.usb.org
 18.10.2000 cp fix packetsize of interrupt endpoint and add warning message if mouse fails
 *)
 
-MODULE UsbMouse;  (** non-portable **) (** cp **)
+MODULE UsbMouse;  (** portable **) (** cp **)
 
 IMPORT Usb, Kernel, SYSTEM, Input;
 

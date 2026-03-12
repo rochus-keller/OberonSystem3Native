@@ -69,6 +69,7 @@ VAR
  
  Nnew, NnewFree, Nrecycle: LONGINT;
 
+(*
 PROCEDURE CheckSum* (VAR data: ARRAY OF SYSTEM.BYTE; len, base: LONGINT): LONGINT;
 CODE {SYSTEM.i386}
  MOV EAX, base[EBP]
@@ -104,6 +105,39 @@ sloop:
  ADD EBX, 2
  DEC ECX
  JNZ sloop
+END ByteSum;
+*)
+
+PROCEDURE CheckSum* (VAR data: ARRAY OF SYSTEM.BYTE; len, base: LONGINT): LONGINT;
+VAR sum, i, word: LONGINT;
+BEGIN
+  sum := base; i := 0;
+  WHILE len >= 2 DO
+    (* Read 16-bit word (little-endian) to mimic the x86 WORD fetch *)
+    word := ORD(data[i]) + ORD(data[i+1]) * 100H;
+    sum := sum + word;
+    INC(i, 2); DEC(len, 2)
+  END;
+  
+  (* Fold 32-bit sum into 16 bits (twice, to handle potential carry) *)
+  sum := (sum MOD 10000H) + (sum DIV 10000H);
+  sum := (sum MOD 10000H) + (sum DIV 10000H);
+  
+  (* Return the 1's complement masked to 16 bits *)
+  RETURN 0FFFFH - sum
+END CheckSum;
+
+PROCEDURE ByteSum* (VAR data: ARRAY OF SYSTEM.BYTE; len: LONGINT): LONGINT;
+VAR sum, i, word: LONGINT;
+BEGIN
+  sum := 0; i := 0;
+  WHILE len >= 2 DO
+    (* Read 16-bit word (little-endian) *)
+    word := ORD(data[i]) + ORD(data[i+1]) * 100H;
+    sum := sum + word;
+    INC(i, 2); DEC(len, 2)
+  END;
+  RETURN sum
 END ByteSum;
 
 PROCEDURE NetToHost* (VAR i: INTEGER);

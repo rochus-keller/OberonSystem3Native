@@ -8,15 +8,16 @@ Reference: http://www.usb.org
 
 30.09.2000 cp first release
 18.10.2000 cp fix size of interrupt endpoint and add warning message if keyboard fails
+2026 me@rochus-keller.ch: replaced i386 inline assembly tables with plain arrays
 *)
 
-MODULE UsbKeyboard; (** non-portable **) (** cp **)
+MODULE UsbKeyboard; (** portable **) 
 
 IMPORT Usb, Kernel, SYSTEM, Files, Input;
 
 CONST
 
-VersionString = "Usb Keyboarddriver 1.0";
+ VersionString = "Usb Keyboarddriver 1.0";
 
 TYPE
 
@@ -51,7 +52,16 @@ VAR
  KeyboardBuffer : ARRAY 256 OF CHAR;
  KeyboardModBuffer : ARRAY 256 OF SET;
  KeyboardFirstEntry, KeyboardLastEntry : INTEGER;
-  
+
+ (* USB HID scancode to AT scancode translation table *)
+ (* Replaces i386 inline assembly UsbScanTab procedure *)
+ UsbScanTabData : ARRAY 256 OF CHAR;
+
+ (* US keyboard translation table *)
+ (* Replaces i386 inline assembly TableUS procedure *)
+ TableUSData : ARRAY 1024 OF CHAR;
+ TableUSLen : LONGINT;
+
 (* Translation table format:  
 
  table = { scancode unshifted-code shifted-code flags }  0FFX .
@@ -73,123 +83,269 @@ VAR
  The table is scanned sequentially (speed not critical).  Ctrl-Break, Ctrl-F10 and Ctrl-Alt-Del
  are always defined and are not in the table.   The control keys are also always defined. *)
 
-(* TableUS - US keyboard translation table (dead keys: ^=1, '=2, `=3, ~=4, "=5) *)
+PROCEDURE InitUsbScanTab;
+VAR i: LONGINT;
+BEGIN
+ FOR i := 0 TO 255 DO UsbScanTabData[i] := CHR(0) END;
+ (* USB HID usage ID to AT set 1 scancode mapping *)
+ (* Row 0: 00-0F *)
+ UsbScanTabData[004H] := CHR(030); (* a *)
+ UsbScanTabData[005H] := CHR(048); (* b *)
+ UsbScanTabData[006H] := CHR(046); (* c *)
+ UsbScanTabData[007H] := CHR(032); (* d *)
+ UsbScanTabData[008H] := CHR(018); (* e *)
+ UsbScanTabData[009H] := CHR(033); (* f *)
+ UsbScanTabData[00AH] := CHR(034); (* g *)
+ UsbScanTabData[00BH] := CHR(035); (* h *)
+ UsbScanTabData[00CH] := CHR(023); (* i *)
+ UsbScanTabData[00DH] := CHR(036); (* j *)
+ UsbScanTabData[00EH] := CHR(037); (* k *)
+ UsbScanTabData[00FH] := CHR(038); (* l *)
+ (* Row 1: 10-1F *)
+ UsbScanTabData[010H] := CHR(050); (* m *)
+ UsbScanTabData[011H] := CHR(049); (* n *)
+ UsbScanTabData[012H] := CHR(024); (* o *)
+ UsbScanTabData[013H] := CHR(025); (* p *)
+ UsbScanTabData[014H] := CHR(016); (* q *)
+ UsbScanTabData[015H] := CHR(019); (* r *)
+ UsbScanTabData[016H] := CHR(031); (* s *)
+ UsbScanTabData[017H] := CHR(020); (* t *)
+ UsbScanTabData[018H] := CHR(022); (* u *)
+ UsbScanTabData[019H] := CHR(047); (* v *)
+ UsbScanTabData[01AH] := CHR(017); (* w *)
+ UsbScanTabData[01BH] := CHR(045); (* x *)
+ UsbScanTabData[01CH] := CHR(021); (* y *)
+ UsbScanTabData[01DH] := CHR(044); (* z *)
+ UsbScanTabData[01EH] := CHR(002); (* 1 *)
+ UsbScanTabData[01FH] := CHR(003); (* 2 *)
+ (* Row 2: 20-2F *)
+ UsbScanTabData[020H] := CHR(004); (* 3 *)
+ UsbScanTabData[021H] := CHR(005); (* 4 *)
+ UsbScanTabData[022H] := CHR(006); (* 5 *)
+ UsbScanTabData[023H] := CHR(007); (* 6 *)
+ UsbScanTabData[024H] := CHR(008); (* 7 *)
+ UsbScanTabData[025H] := CHR(009); (* 8 *)
+ UsbScanTabData[026H] := CHR(010); (* 9 *)
+ UsbScanTabData[027H] := CHR(011); (* 0 *)
+ UsbScanTabData[028H] := CHR(028); (* Enter *)
+ UsbScanTabData[029H] := CHR(001); (* Esc *)
+ UsbScanTabData[02AH] := CHR(014); (* Backspace *)
+ UsbScanTabData[02BH] := CHR(015); (* Tab *)
+ UsbScanTabData[02CH] := CHR(057); (* Space *)
+ UsbScanTabData[02DH] := CHR(012); (* - *)
+ UsbScanTabData[02EH] := CHR(013); (* = *)
+ UsbScanTabData[02FH] := CHR(026); (* [ *)
+ (* Row 3: 30-3F *)
+ UsbScanTabData[030H] := CHR(027); (* ] *)
+ UsbScanTabData[031H] := CHR(043); (* \ *)
+ UsbScanTabData[032H] := CHR(043); (* non-US # *)
+ UsbScanTabData[033H] := CHR(039); (* ; *)
+ UsbScanTabData[034H] := CHR(040); (* ' *)
+ UsbScanTabData[035H] := CHR(041); (* ` *)
+ UsbScanTabData[036H] := CHR(051); (* , *)
+ UsbScanTabData[037H] := CHR(052); (* . *)
+ UsbScanTabData[038H] := CHR(053); (* / *)
+ UsbScanTabData[039H] := CHR(058); (* CapsLock *)
+ UsbScanTabData[03AH] := CHR(059); (* F1 *)
+ UsbScanTabData[03BH] := CHR(060); (* F2 *)
+ UsbScanTabData[03CH] := CHR(061); (* F3 *)
+ UsbScanTabData[03DH] := CHR(062); (* F4 *)
+ UsbScanTabData[03EH] := CHR(063); (* F5 *)
+ UsbScanTabData[03FH] := CHR(064); (* F6 *)
+ (* Row 4: 40-4F *)
+ UsbScanTabData[040H] := CHR(065); (* F7 *)
+ UsbScanTabData[041H] := CHR(066); (* F8 *)
+ UsbScanTabData[042H] := CHR(067); (* F9 *)
+ UsbScanTabData[043H] := CHR(068); (* F10 *)
+ UsbScanTabData[044H] := CHR(087); (* F11 *)
+ UsbScanTabData[045H] := CHR(088); (* F12 *)
+ UsbScanTabData[046H] := CHR(099); (* PrintScreen *)
+ UsbScanTabData[047H] := CHR(070); (* ScrollLock *)
+ UsbScanTabData[048H] := CHR(119); (* Pause *)
+ UsbScanTabData[049H] := CHR(210); (* Insert *)
+ UsbScanTabData[04AH] := CHR(199); (* Home *)
+ UsbScanTabData[04BH] := CHR(201); (* PageUp *)
+ UsbScanTabData[04CH] := CHR(211); (* Delete *)
+ UsbScanTabData[04DH] := CHR(207); (* End *)
+ UsbScanTabData[04EH] := CHR(209); (* PageDown *)
+ UsbScanTabData[04FH] := CHR(205); (* Right *)
+ (* Row 5: 50-5F *)
+ UsbScanTabData[050H] := CHR(203); (* Left *)
+ UsbScanTabData[051H] := CHR(208); (* Down *)
+ UsbScanTabData[052H] := CHR(200); (* Up *)
+ UsbScanTabData[053H] := CHR(069); (* NumLock *)
+ UsbScanTabData[054H] := CHR(181); (* KP / *)
+ UsbScanTabData[055H] := CHR(055); (* KP * *)
+ UsbScanTabData[056H] := CHR(074); (* KP - *)
+ UsbScanTabData[057H] := CHR(078); (* KP + *)
+ UsbScanTabData[058H] := CHR(156); (* KP Enter *)
+ UsbScanTabData[059H] := CHR(079); (* KP 1 *)
+ UsbScanTabData[05AH] := CHR(080); (* KP 2 *)
+ UsbScanTabData[05BH] := CHR(081); (* KP 3 *)
+ UsbScanTabData[05CH] := CHR(075); (* KP 4 *)
+ UsbScanTabData[05DH] := CHR(076); (* KP 5 *)
+ UsbScanTabData[05EH] := CHR(077); (* KP 6 *)
+ UsbScanTabData[05FH] := CHR(071); (* KP 7 *)
+ (* Row 6: 60-6F *)
+ UsbScanTabData[060H] := CHR(072); (* KP 8 *)
+ UsbScanTabData[061H] := CHR(073); (* KP 9 *)
+ UsbScanTabData[062H] := CHR(082); (* KP 0 *)
+ UsbScanTabData[063H] := CHR(083); (* KP . *)
+ UsbScanTabData[064H] := CHR(086); (* non-US \ *)
+ UsbScanTabData[065H] := CHR(127); (* App *)
+ UsbScanTabData[066H] := CHR(116); (* Power *)
+ UsbScanTabData[067H] := CHR(117); (* KP = *)
+ UsbScanTabData[068H] := CHR(085); (* F13 *)
+ UsbScanTabData[069H] := CHR(089); (* F14 *)
+ UsbScanTabData[06AH] := CHR(090); (* F15 *)
+ UsbScanTabData[06BH] := CHR(091); (* F16 *)
+ UsbScanTabData[06CH] := CHR(092); (* F17 *)
+ UsbScanTabData[06DH] := CHR(093); (* F18 *)
+ UsbScanTabData[06EH] := CHR(094); (* F19 *)
+ UsbScanTabData[06FH] := CHR(095); (* F20 *)
+ (* Row 7: 70-7F *)
+ UsbScanTabData[070H] := CHR(120); (* F21 *)
+ UsbScanTabData[071H] := CHR(121); (* F22 *)
+ UsbScanTabData[072H] := CHR(122); (* F23 *)
+ UsbScanTabData[073H] := CHR(123); (* F24 *)
+ UsbScanTabData[074H] := CHR(134); (* Execute *)
+ UsbScanTabData[075H] := CHR(138); (* Help *)
+ UsbScanTabData[076H] := CHR(130); (* Menu *)
+ UsbScanTabData[077H] := CHR(132); (* Select *)
+ UsbScanTabData[078H] := CHR(128); (* Stop *)
+ UsbScanTabData[079H] := CHR(129); (* Again *)
+ UsbScanTabData[07AH] := CHR(131); (* Undo *)
+ UsbScanTabData[07BH] := CHR(137); (* Cut *)
+ UsbScanTabData[07CH] := CHR(133); (* Copy *)
+ UsbScanTabData[07DH] := CHR(135); (* Paste *)
+ UsbScanTabData[07EH] := CHR(136); (* Find *)
+ UsbScanTabData[07FH] := CHR(113); (* Mute *)
+ (* Row 8-9: 80-9F (mostly 0, some at end) *)
+ UsbScanTabData[080H] := CHR(115); (* VolumeUp *)
+ UsbScanTabData[081H] := CHR(114); (* VolumeDown *)
+ UsbScanTabData[087H] := CHR(124); (* International 1 (Ro) *)
+ (* Row E: E0-EF modifier keys *)
+ UsbScanTabData[0E0H] := CHR(029); (* LCtrl *)
+ UsbScanTabData[0E1H] := CHR(042); (* LShift *)
+ UsbScanTabData[0E2H] := CHR(056); (* LAlt *)
+ UsbScanTabData[0E3H] := CHR(125); (* LGui *)
+ UsbScanTabData[0E4H] := CHR(097); (* RCtrl *)
+ UsbScanTabData[0E5H] := CHR(054); (* RShift *)
+ UsbScanTabData[0E6H] := CHR(100); (* RAlt *)
+ UsbScanTabData[0E7H] := CHR(126); (* RGui *)
+ UsbScanTabData[0E8H] := CHR(164); (* Media Play/Pause *)
+ UsbScanTabData[0E9H] := CHR(166); (* Media Stop/Eject *)
+ UsbScanTabData[0EAH] := CHR(165); (* Media Prev *)
+ UsbScanTabData[0EBH] := CHR(163); (* Media Next *)
+ UsbScanTabData[0ECH] := CHR(161); (* Media Eject *)
+ UsbScanTabData[0EDH] := CHR(115); (* Volume Up *)
+ UsbScanTabData[0EEH] := CHR(114); (* Volume Down *)
+ UsbScanTabData[0EFH] := CHR(113); (* Mute *)
+ UsbScanTabData[0F0H] := CHR(150); (* WWW *)
+ UsbScanTabData[0F1H] := CHR(158); (* Back *)
+ UsbScanTabData[0F2H] := CHR(159); (* Forward *)
+ UsbScanTabData[0F3H] := CHR(128); (* Stop *)
+ UsbScanTabData[0F4H] := CHR(136); (* Find/Search *)
+ UsbScanTabData[0F5H] := CHR(177); (* ScrollUp *)
+ UsbScanTabData[0F6H] := CHR(178); (* ScrollDown *)
+ UsbScanTabData[0F7H] := CHR(176); (* Edit *)
+ UsbScanTabData[0F8H] := CHR(142); (* Sleep *)
+ UsbScanTabData[0F9H] := CHR(152); (* Coffee/Lock *)
+ UsbScanTabData[0FAH] := CHR(173); (* Refresh *)
+ UsbScanTabData[0FBH] := CHR(140); (* Calc *)
+END InitUsbScanTab;
+
+PROCEDURE InitTableUS;
+VAR i: LONGINT;
+
+ PROCEDURE E(sc: LONGINT; unsh, sh: CHAR; fl: LONGINT);
+ BEGIN
+  IF i < 1020 THEN
+   TableUSData[i] := CHR(sc); INC(i);
+   TableUSData[i] := unsh; INC(i);
+   TableUSData[i] := sh; INC(i);
+   TableUSData[i] := CHR(fl); INC(i)
+  END
+ END E;
+
+BEGIN
+ i := 0;
+ (* alphabet - CapsLock flag = 4 *)
+ E(01EH, "a", "A", 4); E(030H, "b", "B", 4); E(02EH, "c", "C", 4); E(020H, "d", "D", 4);
+ E(012H, "e", "E", 4); E(021H, "f", "F", 4); E(022H, "g", "G", 4); E(023H, "h", "H", 4);
+ E(017H, "i", "I", 4); E(024H, "j", "J", 4); E(025H, "k", "K", 4); E(026H, "l", "L", 4);
+ E(032H, "m", "M", 4); E(031H, "n", "N", 4); E(018H, "o", "O", 4); E(019H, "p", "P", 4);
+ E(010H, "q", "Q", 4); E(013H, "r", "R", 4); E(01FH, "s", "S", 4); E(014H, "t", "T", 4);
+ E(016H, "u", "U", 4); E(02FH, "v", "V", 4); E(011H, "w", "W", 4); E(02DH, "x", "X", 4);
+ E(015H, "y", "Y", 4); E(02CH, "z", "Z", 4);
+ (* numbers at top *)
+ E(00BH, "0", ")", 0); E(002H, "1", "!", 0); E(003H, "2", "@", 0); E(004H, "3", "#", 0);
+ E(005H, "4", "$", 0); E(006H, "5", "%", 0); E(007H, "6", "^", 0); E(008H, "7", "&", 0);
+ E(009H, "8", "*", 0); E(00AH, "9", "(", 0);
+ (* symbol keys *)
+ E(028H, "'", 22X, 0); E(033H, ",", "<", 0); E(00CH, "-", "_", 0); E(034H, ".", ">", 0);
+ E(035H, "/", "?", 0); E(027H, ";", ":", 0); E(00DH, "=", "+", 0); E(01AH, "[", "{", 0);
+ E(02BH, "\", "|", 0); E(01BH, "]", "}", 0); E(029H, "`", "~", 0);
+ (* control keys *)
+ E(00EH, 7FX, 7FX, 0); (* backspace *)
+ E(00FH, 09X, 09X, 0); (* tab *)
+ E(01CH, 0DX, 0DX, 0); (* enter *)
+ E(039H, 20X, 20X, 0); (* space *)
+ E(001H, 0FEX, 1BX, 0); (* esc *)
+ (* keypad *)
+ E(04FH, 0A9X, "1", 2); (* end/1 *)
+ E(050H, 0C2X, "2", 2); (* down/2 *)
+ E(051H, 0A3X, "3", 2); (* pgdn/3 *)
+ E(04BH, 0C4X, "4", 2); (* left/4 *)
+ E(04CH, 0FFX, "5", 2); (* center/5 *)
+ E(04DH, 0C3X, "6", 2); (* right/6 *)
+ E(047H, 0A8X, "7", 2); (* home/7 *)
+ E(048H, 0C1X, "8", 2); (* up/8 *)
+ E(049H, 0A2X, "9", 2); (* pgup/9 *)
+ E(052H, 0A0X, "0", 2); (* insert/0 *)
+ E(053H, 0A1X, 2EX, 2); (* del/. *)
+ (* gray keys *)
+ E(04AH, "-", "-", 0); (* gray - *)
+ E(04EH, "+", "+", 0); (* gray + *)
+ E(0B5H, "/", "/", 0); (* gray / *)
+ E(037H, "*", "*", 0); (* gray * *)
+ E(0D0H, 0C2X, 0C2X, 0); (* gray down *)
+ E(0CBH, 0C4X, 0C4X, 0); (* gray left *)
+ E(0CDH, 0C3X, 0C3X, 0); (* gray right *)
+ E(0C8H, 0C1X, 0C1X, 0); (* gray up *)
+ E(09CH, 0DX, 0DX, 0); (* gray enter *)
+ E(0D2H, 0A0X, 0A0X, 0); (* gray ins *)
+ E(0D3H, 0A1X, 0A1X, 0); (* gray del *)
+ E(0C9H, 0A2X, 0A2X, 0); (* gray pgup *)
+ E(0D1H, 0A3X, 0A3X, 0); (* gray pgdn *)
+ E(0C7H, 0A8X, 0A8X, 0); (* gray home *)
+ E(0CFH, 0A9X, 0A9X, 0); (* gray end *)
+ (* function keys *)
+ E(03BH, 0A4X, 0FFX, 0); (* F1 *)
+ E(03CH, 0A5X, 0FFX, 0); (* F2 *)
+ E(03DH, 1BX, 0FFX, 0); (* F3 *)
+ E(03EH, 0A7X, 0FFX, 0); (* F4 *)
+ E(03FH, 0F5X, 0FFX, 0); (* F5 *)
+ E(040H, 0F6X, 0FFX, 0); (* F6 *)
+ E(041H, 0F7X, 0FFX, 0); (* F7 *)
+ E(042H, 0F8X, 0FFX, 0); (* F8 *)
+ E(043H, 0F9X, 0FFX, 0); (* F9 *)
+ E(044H, 0FAX, 0FFX, 0); (* F10 *)
+ E(057H, 0FBX, 0FFX, 0); (* F11 *)
+ E(058H, 0FCX, 0FFX, 0); (* F12 *)
+ (* terminator *)
+ TableUSData[i] := 0FFX;
+ TableUSLen := i
+END InitTableUS;
 
 PROCEDURE TableUS(): LONGINT;
-CODE {SYSTEM.i386}
- CALL L1
-L1:
- POP EAX
- ADD EAX,8
- POP EBP
- RET
-  (* alphabet *)
- DB 1EX, "a", "A", 4X, 30X, "b", "B", 4X, 2EX, "c", "C", 4X, 20X, "d", "D", 4X
- DB 12X, "e", "E", 4X, 21X, "f", "F", 4X, 22X, "g", "G", 4X, 23X, "h", "H", 4X
- DB 17X, "i", "I", 4X, 24X, "j", "J", 4X, 25X, "k", "K", 4X, 26X, "l", "L", 4X
- DB 32X, "m", "M", 4X, 31X, "n", "N", 4X, 18X, "o", "O", 4X, 19X, "p", "P", 4X
- DB 10X, "q", "Q", 4X, 13X, "r", "R", 4X, 1FX, "s", "S", 4X, 14X, "t", "T", 4X
- DB 16X, "u", "U", 4X, 2FX, "v", "V", 4X, 11X, "w", "W", 4X, 2DX, "x", "X", 4X
- DB 15X, "y", "Y", 4X, 2CX, "z", "Z", 4X
-  (* Oberon accents (LAlt & RAlt) *)
- DB 1EX, "ä", "Ä", 0CX, 12X, "ë", 0FFX, 0CX, 18X, "ö", "Ö", 0CX, 16X, "ü", "Ü", 0CX
- DB 17X, "ï", 0FFX, 0CX, 1FX, "ß", 0FFX, 0CX, 2EX, "ç", 0FFX, 0CX, 31X, "ñ", 0FFX, 0CX
- DB 1EX, "ä", "Ä", 14X, 12X, "ë", 0FFX, 14X, 18X, "ö", "Ö", 14X, 16X, "ü", "Ü", 14X
- DB 17X, "ï", 0FFX, 14X, 1FX, "ß", 0FFX, 14X, 2EX, "ç", 0FFX, 14X, 31X, "ñ", 0FFX, 14X
-  (* dead keys (LAlt & RAlt) *)
- DB 07X, 0FFX, 1X, 9X, 28X, 2X, 5X, 9X, 29X, 3X, 4X, 9X,
- DB 07X, 0FFX, 1X, 11X, 28X, 2X, 5X, 11X, 29X, 3X, 4X, 11X,
-  (* following keys *)
- DB 1EX, "â", 0FFX, 20X, 12X, "ê", 0FFX, 20X, 17X, "î", 0FFX, 20X, 18X, "ô", 0FFX, 20X
- DB 16X, "û", 0FFX, 20X, 1EX, "à", 0FFX, 60X, 12X, "è", 0FFX, 60X, 17X, "ì", 0FFX, 60X
- DB 18X, "ò", 0FFX, 60X, 16X, "ù", 0FFX, 60X, 1EX, "á", 0FFX, 40X, 12X, "é", 0FFX, 40X
- DB 1EX, "ä", "Ä", 0A4X, 12X, "ë", 0FFX, 0A0X, 17X, "ï", 0FFX, 0A0X, 18X, "ö", "Ö", 0A4X
- DB 16X, "ü", "Ü", 0A4X, 31X, "ñ", 0FFX, 80X
-  (* numbers at top *)
- DB 0BX, "0", ")", 0X, 02X, "1", "!", 0X, 03X, "2", "@", 0X, 04X, "3", "#", 0X
- DB 05X, "4", "$", 0X, 06X, "5", "%", 0X, 07X, "6", "^", 0X, 08X, "7", "&", 0X
- DB 09X, "8", "*", 0X, 0AX, "9", "(", 0X
-  (* symbol keys *)
- DB 28X, "'", 22X, 0X, 33X, ",", "<", 0X, 0CX, "-", "_", 0X, 34X, ".", ">", 0X
- DB 35X, "/", "?", 0X, 27X, ";", ":", 0X, 0DX, "=", "+", 0X, 1AX, "[", "{", 0X
- DB 2BX, "\", "|", 0X, 1BX, "]", "}", 0X, 29X, "`", "~", 0X
-  (* control keys *)
- DB 0EX, 7FX, 7FX, 0X (* backspace *)
- DB 0FX, 09X, 09X, 0X (* tab *)
- DB 1CX, 0DX, 0DX, 0X (* enter *)
- DB 39X, 20X, 20X, 0X (* space *)
- DB 01X, 0FEX, 1BX, 0X (* esc *)
-   (* keypad *)
- DB 4FX, 0A9X, "1", 2X (* end/1 *)
- DB 50X, 0C2X, "2", 2X (* down/2 *)
- DB 51X, 0A3X, "3", 2X (* pgdn/3 *)
- DB 4BX, 0C4X, "4", 2X (* left/4 *)
- DB 4CX, 0FFX, "5", 2X (* center/5 *)
- DB 4DX, 0C3X, "6", 2X (* right/6 *)
- DB 47X, 0A8X, "7", 2X (* home/7 *)
- DB 48X, 0C1X, "8", 2X (* up/8 *)
- DB 49X, 0A2X, "9", 2X (* pgup/9 *)
- DB 52X, 0A0X, "0", 2X (* insert/0 *)
- DB 53X, 0A1X, 2EX, 2X (* del/. *)
-  (* gray keys *)
- DB 4AX, "-", "-", 0X (* gray - *)
- DB 4EX, "+", "+", 0X (* gray + *)
- DB 0B5X, "/", "/", 0X (* gray / *)
- DB 37X, "*", "*", 0X (* gray * *)
- DB 0D0X, 0C2X, 0C2X, 0X (* gray down *)
- DB 0CBX, 0C4X, 0C4X, 0X (* gray left *)
- DB 0CDX, 0C3X, 0C3X, 0X (* gray right *)
- DB 0C8X, 0C1X, 0C1X, 0X (* gray up *)
- DB 09CX, 0DX, 0DX, 0X (* gray enter *)
- DB 0D2X, 0A0X, 0A0X, 0X (* gray ins *)
- DB 0D3X, 0A1X, 0A1X, 0X (* gray del *)
- DB 0C9X, 0A2X, 0A2X, 0X (* gray pgup *)
- DB 0D1X, 0A3X, 0A3X, 0X (* gray pgdn *)
- DB 0C7X, 0A8X, 0A8X, 0X (* gray home *)
- DB 0CFX, 0A9X, 0A9X, 0X (* gray end *)
-  (* function keys *)
- DB 3BX, 0A4X, 0FFX, 0X (* F1 *)
- DB 3CX, 0A5X, 0FFX, 0X (* F2 *)
- DB 3DX, 1BX, 0FFX, 0X (* F3 *)
- DB 3EX, 0A7X, 0FFX, 0X (* F4 *)
- DB 3FX, 0F5X, 0FFX, 0X (* F5 *)
- DB 40X, 0F6X, 0FFX, 0X (* F6 *)
- DB 41X, 0F7X, 0FFX, 0X (* F7 *)
- DB 42X, 0F8X, 0FFX, 0X (* F8 *)
- DB 43X, 0F9X, 0FFX, 0X (* F9 *)
- DB 44X, 0FAX, 0FFX, 0X (* F10 *)
- DB 57X, 0FBX, 0FFX, 0X (* F11 *)
- DB 58X, 0FCX, 0FFX, 0X (* F12 *)
- DB 0FFX
+BEGIN
+ RETURN SYSTEM.ADR(TableUSData[0])
 END TableUS;
 
-PROCEDURE UsbScanTab() : LONGINT;
-CODE {SYSTEM.i386}
- CALL L1
-L1:
- POP EAX
- ADD EAX,8
- POP EBP
- RET
-
- (* Keyboard table stolen from Linux Usb keyboard driver, and corrected for Oberon *)
- DB 000, 000, 000, 000, 030, 048, 046, 032, 018, 033, 034, 035, 023, 036, 037, 038
- DB 050, 049, 024, 025, 016, 019, 031, 020, 022, 047, 017, 045, 021 ,044, 002, 003
- DB 004, 005, 006, 007, 008, 009, 010, 011, 028, 001, 014, 015 ,057, 012, 013, 026
- DB 027, 043, 043, 039, 040, 041, 051, 052, 053, 058, 059, 060, 061, 062, 063, 064
- DB 065, 066, 067, 068, 087, 088, 099, 070, 119, 210, 199, 201, 211, 207, 209, 205
- DB 203, 208, 200, 069, 181, 055, 074, 078, 156, 079, 080, 081, 075, 076, 077, 071
- DB 072, 073, 082, 083, 086, 127, 116, 117, 085, 089, 090, 091, 092, 093, 094, 095
- DB 120, 121, 122, 123, 134, 138, 130, 132, 128, 129, 131, 137, 133, 135, 136, 113
- DB 115, 114, 000, 000, 000, 000, 000, 124, 000, 000, 000, 000, 000, 000, 000, 000
- DB 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000
- DB 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000
- DB 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000
- DB 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000
- DB 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000, 000
- DB 029, 042, 056, 125, 097, 054, 100, 126, 164, 166, 165, 163, 161, 115, 114, 113
- DB 150, 158, 159, 128, 136, 177, 178, 176, 142, 152, 173, 140, 000, 000, 000, 000
-
+PROCEDURE UsbScanTab(): LONGINT;
+BEGIN
+ RETURN SYSTEM.ADR(UsbScanTabData[0])
 END UsbScanTab;
 
 PROCEDURE LoadKeyboardTable():LONGINT;
@@ -503,6 +659,9 @@ BEGIN
 
  KeyboardFirstEntry := 0;
  KeyboardLastEntry := 0;
+
+ InitUsbScanTab;
+ InitTableUS;
 
  KeyboardTable := LoadKeyboardTable();
 

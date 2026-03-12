@@ -14,7 +14,8 @@ Reference: http://www.intel.com
 
 (* Future improvment: PROCEDURES marked with "**** MUTEX ****" must use a monitor in AOS *)
 
-MODULE UsbUhci;  (** non-portable **)  (** cp **)
+(* renamed, was UsbUhci *)
+MODULE UsbDriver;  (** non-portable **)  (** cp **)
 
 IMPORT Usb, SYSTEM, Kernel, PCI;
 
@@ -482,7 +483,7 @@ BEGIN
 
   (* still no free TD's ?? *)
   IF (con.tdlist.first = con.tdlist.last) THEN
-   Kernel.WriteString("UsbUhci: No more free TD's. Please increase the TD count in UsbUhci.Mod"); Kernel.WriteLn;
+   Kernel.WriteString("UsbDriver: No more free TD's. Please increase the TD count in UsbDriver.Mod"); Kernel.WriteLn;
    RETURN -1; (* alternatively we could use '1' since this is not valid too (alignment) *)
   END;
  END;
@@ -574,7 +575,7 @@ BEGIN
   con.GCqueueTimestamp[freeentry] := timenow;
  ELSE
   (* THIS IS VERY UNLIKELY *)
-  IF DEBUG THEN Kernel.WriteString("UsbUhci: Bad luck, GCqueue full"); Kernel.WriteLn; END;
+  IF DEBUG THEN Kernel.WriteString("UsbDriver: Bad luck, GCqueue full"); Kernel.WriteLn; END;
   WHILE (GetFrame(con) = timenow) DO (* nothing *) END;
   FreeDeadQHChain(con, addr);
   (* we can do the following, since in Native Oberon there wont be any new entries,
@@ -620,7 +621,7 @@ BEGIN
   END;
  END;
 
- IF DEBUG THEN Kernel.WriteString("UsbUhci: transfer finished"); Kernel.WriteLn; END;
+ IF DEBUG THEN Kernel.WriteString("UsbDriver: transfer finished"); Kernel.WriteLn; END;
 
  req.Status := status;
 
@@ -635,10 +636,10 @@ VAR
  spec : UhciConSpec;
 BEGIN
 
- IF DEBUG THEN Kernel.WriteString("UsbUhci: got request for deleting transfer"); Kernel.WriteLn; END; 
+ IF DEBUG THEN Kernel.WriteString("UsbDriver: got request for deleting transfer"); Kernel.WriteLn; END; 
 
  IF req.ConSpec = NIL THEN
-  Kernel.WriteString("UsbUhci: Warning, trying to delete trans again"); Kernel.WriteLn;
+  Kernel.WriteString("UsbDriver: Warning, trying to delete trans again"); Kernel.WriteLn;
   RETURN
  END;
 
@@ -649,7 +650,7 @@ BEGIN
   req.ConSpec := NIL;
  END;
 
- IF DEBUG THEN Kernel.WriteString("UsbUhci: request deleted"); Kernel.WriteLn; END; 
+ IF DEBUG THEN Kernel.WriteString("UsbDriver: request deleted"); Kernel.WriteLn; END; 
 
 END UpcallDeleteTrans;
 
@@ -661,12 +662,12 @@ VAR
  spec : UhciConSpec;
 BEGIN
 
- IF DEBUG THEN Kernel.WriteString("UsbUhci: got request for restarting interrupt"); Kernel.WriteLn; END;
+ IF DEBUG THEN Kernel.WriteString("UsbDriver: got request for restarting interrupt"); Kernel.WriteLn; END;
 
  IF (req.Typ # Usb.TransferInterrupt) THEN HALT(303); END;
 
  IF req.ConSpec = NIL THEN
-  Kernel.WriteString("UsbUhci: Warning, trying to restart blocking interrupt"); Kernel.WriteLn;  
+  Kernel.WriteString("UsbDriver: Warning, trying to restart blocking interrupt"); Kernel.WriteLn;  
   req.Status := Usb.ResInternal;
   RETURN;
  END;
@@ -689,7 +690,7 @@ VAR
 BEGIN
 
  IF req.ConSpec = NIL THEN
-  Kernel.WriteString("UsbUhci: Warning, trying to probe blocking transfer"); Kernel.WriteLn;
+  Kernel.WriteString("UsbDriver: Warning, trying to probe blocking transfer"); Kernel.WriteLn;
   req.Status := Usb.ResInternal;
   RETURN;
  END;
@@ -765,7 +766,7 @@ BEGIN
  LOOP
   SYSTEM.GET(queue, SYSTEM.VAL(LONGINT, qhtmp));
   IF qhtmp = 1 THEN
-   Kernel.WriteString("UsbUhci: Fatal, DeleteQH cannot find qh entry in queue"); Kernel.WriteLn;
+   Kernel.WriteString("UsbDriver: Fatal, DeleteQH cannot find qh entry in queue"); Kernel.WriteLn;
    HALT(303);
   END;
   IF qhtmp = delthis THEN
@@ -875,7 +876,7 @@ VAR
  spec : UhciConSpec; pid : INTEGER;
 BEGIN
 
- IF DEBUG THEN Kernel.WriteString("UsbUhci: got request for interrupt transfer"); Kernel.WriteLn; END;
+ IF DEBUG THEN Kernel.WriteString("UsbDriver: got request for interrupt transfer"); Kernel.WriteLn; END;
 
  (* the specs say that values  0 < x < 256 are ok, but since the controller supports it, we allow for higher values *)
  (* perhaps needed for special usb driver test code *)
@@ -926,12 +927,12 @@ BEGIN
  req.Status := Usb.ResInProgress;
 
  IF req.Timeout # 0 THEN
-  IF DEBUG THEN Kernel.WriteString("UsbUhci: starting interrupt transfer"); Kernel.WriteLn; END; 
+  IF DEBUG THEN Kernel.WriteString("UsbDriver: starting interrupt transfer"); Kernel.WriteLn; END; 
   DoSchedule(con, req, qh);
   FreeLiveQHChain(con, qh);
   req.ConSpec := NIL;
  ELSE
-  IF DEBUG THEN Kernel.WriteString("UsbUhci: starting nonblocking interrupt transfer"); Kernel.WriteLn; END;  
+  IF DEBUG THEN Kernel.WriteString("UsbDriver: starting nonblocking interrupt transfer"); Kernel.WriteLn; END;  
   NEW(spec); spec.qh := qh; req.ConSpec := spec;
   spec.queue := InsertQH(con, req, qh);
  END;
@@ -954,8 +955,8 @@ VAR
 BEGIN
 
  IF DEBUG THEN
-  Kernel.WriteString("UsbUhci: got request for control transfer"); Kernel.WriteLn;
-  Kernel.WriteString("UsbUhci: details:");
+  Kernel.WriteString("UsbDriver: got request for control transfer"); Kernel.WriteLn;
+  Kernel.WriteString("UsbDriver: details:");
   Kernel.WriteString(" address "); Kernel.WriteInt(req.Device.Address, 0);
   Kernel.WriteString(" endpoint "); Kernel.WriteInt(req.Endpoint, 0);
   Kernel.WriteString(" len: "); Kernel.WriteInt(req.BufferLen, 0); Kernel.WriteLn;
@@ -1047,12 +1048,12 @@ BEGIN
  req.Status := Usb.ResInProgress;
 
  IF req.Timeout # 0 THEN
-  IF DEBUG THEN Kernel.WriteString("UsbUhci: starting control transfer"); Kernel.WriteLn; END;
+  IF DEBUG THEN Kernel.WriteString("UsbDriver: starting control transfer"); Kernel.WriteLn; END;
   DoSchedule(con, req, qh);
   FreeLiveQHChain(con, qh);
   req.ConSpec := NIL;
  ELSE
-  IF DEBUG THEN Kernel.WriteString("UsbUhci: starting nonblocking control transfer"); Kernel.WriteLn; END;
+  IF DEBUG THEN Kernel.WriteString("UsbDriver: starting nonblocking control transfer"); Kernel.WriteLn; END;
   NEW(spec); spec.qh := qh; req.ConSpec := spec;
   spec.queue := InsertQH(con, req, qh);
  END;
@@ -1159,7 +1160,7 @@ BEGIN
   FreeLiveQHChain(con, qh);
   req.ConSpec := NIL;
  ELSE
-  IF DEBUG THEN Kernel.WriteString("UsbUhci: starting nonblocking bulk transfer"); Kernel.WriteLn; END;  
+  IF DEBUG THEN Kernel.WriteString("UsbDriver: starting nonblocking bulk transfer"); Kernel.WriteLn; END;  
   NEW(spec); spec.qh := qh; req.ConSpec := spec;
   spec.queue := InsertQH(con, req, qh);
  END;
@@ -1573,15 +1574,15 @@ BEGIN
   iobase := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, iobase) * {1..31});
 
   IF (IrqRouting = 0) THEN
-   Kernel.WriteString("UsbUhci: Please enable USB-IRQ in BIOS for UHCI Controller at base 0");
+   Kernel.WriteString("UsbDriver: Please enable USB-IRQ in BIOS for UHCI Controller at base 0");
    PrintHex(iobase); Kernel.WriteChar("H"); Kernel.WriteLn;
   ELSE
    WriteWord(0C0H, 2000H); (* disable legacy emulation *)
    IF InitController(iobase, SHORT(IrqRouting)) THEN
-    Kernel.WriteString("UsbUhci: Initialised USB UHCI controller at base 0"); PrintHex(iobase); 
+    Kernel.WriteString("UsbDriver: Initialised USB UHCI controller at base 0"); PrintHex(iobase); 
     Kernel.WriteString("H, Irq: "); Kernel.WriteInt(IrqRouting, 0); Kernel.WriteLn;
    ELSE
-    Kernel.WriteString("UsbUhci: ERROR: Cannot init USB UHCI controller at base 0"); PrintHex(iobase); 
+    Kernel.WriteString("UsbDriver: ERROR: Cannot init USB UHCI controller at base 0"); PrintHex(iobase); 
     Kernel.WriteString("H, Irq: "); Kernel.WriteInt(IrqRouting, 0); Kernel.WriteLn;
    END;
   END;
@@ -1679,6 +1680,6 @@ END Init0;
 BEGIN
  Init0();
  Init()
-END UsbUhci.
+END UsbDriver.
 
-(* Init: UsbUhci.Init  Diagnostics: UsbUhci.Diag *)
+(* Init: UsbDriver.Init  Diagnostics: UsbDriver.Diag *)

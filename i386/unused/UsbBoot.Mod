@@ -12,7 +12,7 @@ Reference: http://www.usb.org
 
 MODULE UsbBoot; (** non-portable **)  (** cp **)
 
-IMPORT Kernel, Disks, Usb, UsbStorage, UsbUhci;
+IMPORT Kernel, Disks, Usb, UsbStorage, UsbDriver;
 
 CONST
 
@@ -28,7 +28,7 @@ VAR
  res, size, i : LONGINT; k : INTEGER;
 BEGIN
 
- UsbUhci.Init; (* load chipset driver *)
+ UsbDriver.Init; (* load chipset driver *)
  UsbStorage.Install; (* load usb storage (floppy, scsi) driver *)
 
  RetryCounter := 0;

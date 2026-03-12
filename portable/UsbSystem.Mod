@@ -9,9 +9,9 @@ Reference: http://www.usb.org
 17.11.2000 cp first release
 *)
 
-MODULE UsbSystem; (** non-portable **)  (** cp **)
+MODULE UsbSystem; (** portable **)  (** cp **)
 
-IMPORT Kernel, Oberon, Input, Usb, UsbUhci;
+IMPORT Kernel, Oberon, Input, Usb, UsbDriver;
 
 VAR
 
@@ -40,9 +40,7 @@ END Start;
 
 BEGIN
 
- UsbUhci.Init;
-
- (* future improvement: add UsbOhci.Init here :) *)
+ UsbDriver.Init;
 
  Usb.Connect;
 
