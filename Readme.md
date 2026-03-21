@@ -27,6 +27,12 @@ Here is a screenshot of the IDE and the running system.
 - This compiler was transpiled directly from the original Oberon sources using the custom transpiler available at https://github.com/rochus-keller/activeoberon/.
 - A new C99 version of the Oberon BootLinker also creates the multiboot header and code which sets up an initial stack to call the Kernel.
 
+### Recent Milestones
+
+- Assembler code was removed from all portable modules (replaced by regular Oberon or SYSTEM calls).
+- Modules dependent on hardware-specific SYSTEM calls have been moved to the i386 (and arm32) directories.
+- **ARMv7 Architecture Support:** The inner core of the Oberon system has successfully been migrated to ARMv7. The system boots on QEMU 10.2 and works as expected.
+
 ### How to build
 
 The scripts required to build the system, statically link the inner core modules, create and populate the AosFs drive and run the system on QEMU are found in the 
@@ -34,11 +40,9 @@ i386/build directory. The toolchain directory has first to be prepared with the 
 assumed to run the scripts. Precompiled versions of the toolchain and the resulting system image are made available.
 The buile_all.sh script depends on a Modules.txt file, the contens of which is generated using the "Show dependency order" dialog of the mentioned IDE. 
 
+For the ARM version of the system see the arm32/build directory. 
 
-### Future Roadmap
+### Roadmap
 
-- The immediate goal is to remove raw assembler code from all otherwise portable modules.
-- The system will systematically reduce its reliance on hardware-specific SYSTEM module features.
-- These architectural improvements will pave the way for porting the system to new target architectures like the Raspberry Pi.
-
+- The ARMv7 version for Raspberry Pi Model 3b is work in progress.
 
