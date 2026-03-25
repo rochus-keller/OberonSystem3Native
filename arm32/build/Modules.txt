@@ -8,3 +8,16 @@ OFSCacheVolumes.Mod
 OFSBoot.Mod
 OFSDiskVolumes.Mod
 EMMCDisks.Mod
+Objects.Mod
+Displays.Mod
+Displays.Display.Mod
+Input.Mod
+Fonts.Mod
+Viewers.Mod
+Reals.Mod
+Texts.Mod
+Oberon.Mod
+MenuViewers.Mod
+TextFrames.Mod
+System.Mod
+DisplayLinear.Mod
