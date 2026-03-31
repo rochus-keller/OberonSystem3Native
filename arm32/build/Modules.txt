@@ -21,3 +21,8 @@ MenuViewers.Mod
 TextFrames.Mod
 System.Mod
 DisplayLinear.Mod
+Usb.Mod
+UsbDriver.Mod
+UsbSystem.Mod
+UsbMouse.Mod
+UsbKeyboard.Mod

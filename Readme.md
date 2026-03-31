@@ -45,7 +45,7 @@ For the ARM version of the system see the arm32/build directory.
 ### Roadmap
 
 - The ARMv7 version for Raspberry Pi Model 3b is work in progress.
-  Kernel, Reals, SD card access and display driver migrated.
+  Kernel, Reals, SD card access, display and USB driver migrated.
   
 ![Work in progress](http://software.rochus-keller.ch/inner_outer_core_2026-03-25_21-41-43.png)
 
