@@ -31,7 +31,9 @@ Here is a screenshot of the IDE and the running system.
 
 - Assembler code was removed from all portable modules (replaced by regular Oberon or SYSTEM calls).
 - Modules dependent on hardware-specific SYSTEM calls have been moved to the i386 (and arm32) directories.
-- **ARMv7 Architecture Support:** The inner core of the Oberon system has successfully been migrated to ARMv7. The system boots on QEMU 10.2 and works as expected.
+- ARMv7 Architecture Support: The inner and outer core of the Oberon system (Kernel, Reals, SD card access) including supporting platform specific files (display and USB driver, Math, etc.) have successfully been migrated to ARMv7. The system boots on QEMU 10.2 and works as expected.
+
+![Oberon System on QEMU ARMv7](http://software.rochus-keller.ch/FullSystemArm_2026-04-01_20-14-38.png)
 
 ### How to build
 
@@ -44,9 +46,6 @@ For the ARM version of the system see the arm32/build directory.
 
 ### Roadmap
 
-- The ARMv7 version for Raspberry Pi Model 3b is work in progress.
-  Kernel, Reals, SD card access, display and USB driver migrated.
-  
-![Work in progress](http://software.rochus-keller.ch/inner_outer_core_2026-03-25_21-41-43.png)
+- Run the full system on QEMU ARMv7 and on the real Raspberry Pi Model 3b and Zero 2.
 
 
