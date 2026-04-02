@@ -5,6 +5,7 @@ set -e
 # copy all source files to the drive staging
 cp ../../rootfs/* ../output/drive
 cp ../*.Mod ../output/drive
+cp ../compiler/*.Mod ../output/drive
 cp ../../portable/*.Mod ../output/drive
 
 # Path to the list of modules

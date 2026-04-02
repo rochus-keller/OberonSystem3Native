@@ -1,6 +1,6 @@
 ### Oberon System 3 Multiboot Edition
 
-This project modernizes the Kernel of Oberon System 3 (version 2.3.7) by migrating it from the original Oberon Boot Loader (OBL, written in assembler) to the Multiboot specification (handled in Oberon directly in the Kernel). By providing a modern C99-based toolchain and abstracting away legacy constraints, this project allows a historically significant operating system to be easily installed, configured, and booted in modern emulation environments like QEMU. 
+This project modernizes the Kernel of Oberon System 3 (version 2.3.7) by migrating it from the original Oberon Boot Loader (OBL, written in assembler) to the Multiboot specification (handled in Oberon directly in the Kernel). By providing a modern C99-based toolchain and abstracting away legacy constraints, this project allows a historically significant operating system to be easily installed, configured, and booted in modern emulation environments like QEMU, as well as on native ARM-based single-board computers.
 
 ### Historical Context and Significance
 
@@ -29,23 +29,24 @@ Here is a screenshot of the IDE and the running system.
 
 ### Recent Milestones
 
-- Assembler code was removed from all portable modules (replaced by regular Oberon or SYSTEM calls).
-- Modules dependent on hardware-specific SYSTEM calls have been moved to the i386 (and arm32) directories.
-- ARMv7 Architecture Support: The inner and outer core of the Oberon system (Kernel, Reals, SD card access) including supporting platform specific files (display and USB driver, Math, etc.) have successfully been migrated to ARMv7. The system boots on QEMU 10.2 and works as expected.
+- Assembler code was removed from all portable modules (replaced by regular Oberon or `SYSTEM` calls).
+- Modules dependent on hardware-specific `SYSTEM` calls have been moved to the i386 (and arm32) directories.
+- **ARMv7 Architecture Support:** The inner and outer core of the Oberon system (Kernel, Reals, SD card access) including supporting platform-specific files (display and USB driver, Math, etc.) have successfully been migrated to ARMv7. The full system now natively boots and works as expected on QEMU 10.2 emulating the `raspi2b` machine.
 
 ![Oberon System on QEMU ARMv7](http://software.rochus-keller.ch/FullSystemArm_2026-04-01_20-14-38.png)
 
 ### How to build
 
 The scripts required to build the system, statically link the inner core modules, create and populate the AosFs drive and run the system on QEMU are found in the 
-i386/build directory. The toolchain directory has first to be prepared with the op2, multibootlinker and aosfstool. Also an output and output/drive directory are 
+`i386/build` directory. The toolchain directory has first to be prepared with the `op2`, `multibootlinker` and `aosfstool`. Also an `output` and `output/drive` directory are 
 assumed to run the scripts. Precompiled versions of the toolchain and the resulting system image are made available.
-The buile_all.sh script depends on a Modules.txt file, the contens of which is generated using the "Show dependency order" dialog of the mentioned IDE. 
+The `build_all.sh` script depends on a `Modules.txt` file, the contents of which is generated using the "Show dependency order" dialog of the mentioned IDE. 
 
-For the ARM version of the system see the arm32/build directory. 
+For the ARM version of the system see the `arm32/build` directory. 
 
 ### Roadmap
 
-- Run the full system on QEMU ARMv7 and on the real Raspberry Pi Model 3b and Zero 2.
-
+- Work in progress: debug and run the ARMv7 system directly on real hardware via JTAG, targeting the Raspberry Pi Model 2b, Model 3b, and Zero 2.
+- Migrate network driver and test adapter
+- Future: migrate the system to the RISC-V based ESP32-P4 architecture, particularly targeting the [new Olimex board](https://www.olimex.com/Products/IoT/ESP32-P4/ESP32-P4-PC/open-source-hardware).
 
