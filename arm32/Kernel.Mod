@@ -230,15 +230,6 @@ CODE {SYSTEM.arm}
   ADD SP, SP, #8
 END PutWord;
 
-(* ARM Semihosting: write one character via SYS_WRITEC (opcode 03H).
-  R0 = 3 (SYS_WRITEC), R1 = pointer to the character byte on stack at SP. *)
-PROCEDURE -SemiWriteChar(ch: CHAR);
-CODE {SYSTEM.arm}
-  MOV R0, 3
-  ADD R1, SP, 0
-  SVC 123456H
-END SemiWriteChar;
-
 (* Return current stack pointer value (R13). *)
 PROCEDURE -GetSP(): LONGINT;
 CODE {SYSTEM.arm}
@@ -405,15 +396,21 @@ CODE {SYSTEM.arm}
 END SetIRQStack;
 
 
-
-(* Write a single character via ARM semihosting. *)
-PROCEDURE -SemiWriteC(ch: CHAR);
+(* Write a single character via ARM semihosting with runtime CPU detection. *)
+PROCEDURE -SemiWriteC*(ch: CHAR);
 CODE {SYSTEM.arm}
   LDRB R1, [R11, #8]       (* load character from parameter *)
   STRB R1, [R11, #-4]      (* store to scratch space on stack *)
   SUB  R1, R11, #4         (* r1 = pointer to the byte *)
   MOV  R0, #3              (* SYS_WRITEC *)
-  DCW 03456H, 0EF12H       (* SVC #0x123456 - semihosting trap *)
+  
+  DCD 0EE102F10H           (* MRC p15, 0, r2, c0, c0, 0  ; Read CPU ID into R2 *)
+  DCD 0E2022A0FH           (* AND r2, r2, #0xF000        ; Mask ID *)
+  DCD 0E3520A0DH           (* CMP r2, #0xD000            ; Check if Cortex-A53 (RPi 3) *)
+  DCD 01A000001H           (* BNE +1                     ; If NOT Cortex-A53, jump over HLT and B *)
+  DCD 0E10F0070H           (* HLT 0xF000                 ; Cortex-A53 Semihosting Trap *)
+  DCD 0EA000000H           (* B +0                       ; Jump over SVC *)
+  DCD 0EF123456H           (* SVC 0x123456               ; Cortex-A7 (QEMU) Semihosting Trap *)
 END SemiWriteC;
 
 PROCEDURE WriteChar*(c: CHAR);
@@ -561,18 +558,12 @@ END InitTracing;
 
 
 (* Parse the image header to find RAM size, then
-  extract the command-line config string from ATAGS.
-  The multibootlinker writes a header at ImageBase (0x8000):
-    offset 0:  B instruction (branch to entry)
-    offset 4:  LinkBase (= ImageBase = 0x8000)
-    offset 8:  HeapStart (end of image data)
-    offset 12: ImageSize
-    offset 16: RAMSize *)
+  extract the command-line config string from ATAGS. *)
 PROCEDURE ReadBootTable;
 VAR
   base, ramSize: LONGINT;
-  fp, atagsPtr: LONGINT;
-  tagSize, tagId, ptr: LONGINT;
+  atagsPtr: LONGINT;
+  tagSize, tagId, ptr, val: LONGINT;
   i: INTEGER;
   ch: CHAR;
 BEGIN
@@ -582,20 +573,29 @@ BEGIN
   ELSE memTop := DefaultRAMSize
   END;
 
-  (* Walk R11 frame chain to get R2 (ATAGS pointer) from linker init.
-    ReadBootTable is called from the module body, which was called by
-    the linker init code that did PUSH {R2} before BL moduleBody. *)
-  fp := GetR11();               (* R11 of ReadBootTable *)
-  fp := GetWord(fp);            (* step up to module body's R11 *)
-  atagsPtr := GetWord(fp + 8);  (* get the pushed R2 = ATAGS pointer *)
+  (* Robust ATAGS pointer search:
+     The multibootlinker pushed R2 onto the stack just before calling us.
+     StackOrg points near the top of the stack. We scan upwards a few bytes 
+     to find a pointer that points to the ATAG_CORE magic number. *)
+  atagsPtr := 0;
+  ptr := StackOrg;
+  WHILE (atagsPtr = 0) & (ptr <= StackOrg + 128) DO
+    val := GetWord(ptr);
+    (* Must be a valid, aligned RAM address *)
+    IF (val > 0) & (val < 10000000H) & (val MOD 4 = 0) THEN
+      tagId := GetWord(val + 4);
+      IF tagId = 54410001H THEN (* ATAG_CORE magic number *)
+        atagsPtr := val
+      END
+    END;
+    INC(ptr, 4)
+  END;
 
-  (* Validate atagsPtr: when using -device loader (no -kernel), R2 may
-    be uninitialized garbage. *)
-  IF (atagsPtr > 0) & (atagsPtr < 10000000H) THEN
-    tagId := GetWord(atagsPtr + 4);
-    IF tagId # 54410001H THEN atagsPtr := 0 END  (* not ATAG_CORE ? invalid *)
-  ELSE
-    atagsPtr := 0
+  (* Fallback: Check the legacy hardcoded address (0x100) just in case *)
+  IF atagsPtr = 0 THEN
+    IF GetWord(100H + 4) = 54410001H THEN
+      atagsPtr := 100H
+    END
   END;
 
   cmdlineBuf[0] := 0X;
@@ -609,8 +609,28 @@ BEGIN
       IF tagId = 54410009H THEN  (* ATAG_CMDLINE *)
         (* Data starts at offset 8 from tag start.
           Contains a NUL-terminated string
-          Format: "key=val;key=val;..."  We convert '=' and ';' to 0 *)
+          Format: ";;key=val;key=val;..."  We convert '=' and ';' to 0 
+          Surprise: raspi prefixes the format with other stuff, so we skip until we find ";;". *)
         ptr := atagsPtr + 8;
+        LOOP
+          SYSTEM.GET(ptr, ch);
+          IF ch = 0X THEN 
+            (* ";;" not found. Fall back to start of string. *)
+            ptr := atagsPtr + 8; 
+            EXIT 
+          END;
+          
+          IF ch = ";" THEN
+            SYSTEM.GET(ptr + 1, ch);
+            IF ch = ";" THEN
+              INC(ptr, 2);  (* Found start. Skip the ";;" *)
+              EXIT
+            END
+          END;
+          INC(ptr)
+        END;
+        
+        (* Now do the normal parsing into cmdlineBuf... *)
         i := 0;
         SYSTEM.GET(ptr, ch);
         WHILE (ch # 0X) & (i < LEN(cmdlineBuf) - 2) DO
@@ -624,7 +644,6 @@ BEGIN
         END;
         cmdlineBuf[i] := 0X;
         cmdlineBuf[i + 1] := 0X
-
       END;
       (* Advance to next tag: tagSize is in 32-bit words *)
       INC(atagsPtr, tagSize * 4);
@@ -633,11 +652,9 @@ BEGIN
     END
   END;
 
-  (* Fallback: if no ATAG_CMDLINE was found (e.g. -device loader without
-    -kernel), use a built-in default config string.  *)
+  (* Fallback: if no ATAG_CMDLINE was found, use built-in default config. *)
   IF cmdlineBuf[0] = 0X THEN
     WriteString("Kernel: no ATAGS, using default boot config"); WriteLn;
-    (* "DiskDevice" NUL "SD0" NUL "AosFS" NUL ... *)
     i := 0;
     cmdlineBuf[i] := "D"; INC(i); cmdlineBuf[i] := "i"; INC(i);
     cmdlineBuf[i] := "s"; INC(i); cmdlineBuf[i] := "k"; INC(i);

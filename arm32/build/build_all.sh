@@ -17,7 +17,7 @@ while IFS= read -r name || [[ -n "$name" ]]; do
     ../toolchain/op2 "../output/drive/$name"
 done < "$MODULES_FILE"
 
-../toolchain/multibootlinker --multiboot --enable-stack --arch arm32 --stack-size 65536 --autofix Kernel Disks EMMCDisks OFS Files Modules OFSAosFiles OFSCacheVolumes OFSBoot OFSDiskVolumes
+../toolchain/multibootlinker --multiboot --enable-stack --arch arm32 --base 10000 --stack-size 64000 --hyp-to-svc --core-parking --autofix Kernel Disks EMMCDisks OFS Files Modules OFSAosFiles OFSCacheVolumes OFSBoot OFSDiskVolumes
 
 mv *.Obj ../output/drive
 mv image.bin ../output
