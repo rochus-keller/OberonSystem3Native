@@ -57,8 +57,8 @@ TYPE
 
 VAR
   display: Display;
-  (* 16-byte aligned mailbox message buffer, allocate extra and align *)
-  mbufRaw: ARRAY BufWords * 4 + 16 OF CHAR;
+  (* 64-byte aligned mailbox message buffer to prevent cache line false sharing *)
+  mbufRaw: ARRAY BufWords * 4 + 64 OF CHAR;
 
 
 
@@ -93,9 +93,35 @@ CODE {SYSTEM.arm}
   DCW 0F05FH, 0F57FH
 END DMB;
 
+(* Clean and Invalidate Data Cache line by MVA to PoC
+  MCR p15, 0, R0, c7, c14, 1 = 0xEE070F3E *)
+PROCEDURE -CleanAndInvalidateDCache(adr: LONGINT);
+CODE {SYSTEM.arm}
+  LDR R0, [SP, #0]
+  DCW 00F3EH, 0EE07H
+END CleanAndInvalidateDCache;
+
+(* Flush data cache range to ensure ARM/GPU memory coherence *)
+PROCEDURE FlushDCache(adr, size: LONGINT);
+VAR end: LONGINT;
+BEGIN
+  end := adr + size;
+  WHILE adr < end DO
+    CleanAndInvalidateDCache(adr);
+    INC(adr, 32) (* Cortex-A53 cache line is 64 bytes, stepping by 32 is safe *)
+  END;
+  DSB
+END FlushDCache;
+
+(* Convert ARM physical address to VideoCore bus address (OR 0xC0000000) *)
+PROCEDURE GetBusAdr(adr: LONGINT): LONGINT;
+BEGIN
+  RETURN SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, adr) + {30, 31})
+END GetBusAdr;
+
 
 (* Write a message to the mailbox.
-  data: 32-bit address of message buffer (must be 16-byte aligned)
+  data: 32-bit address of message buffer
   channel: 0..15 *)
 PROCEDURE MboxWriteMsg(data, channel: LONGINT);
 BEGIN
@@ -173,10 +199,11 @@ END Install;
   Returns TRUE if valid dimensions were returned. *)
 PROCEDURE QueryDisplay(VAR w, h, d: LONGINT): BOOLEAN;
 VAR mbuf, resp: LONGINT; i: LONGINT;
-  qbufRaw: ARRAY QBufWords * 4 + 16 OF CHAR;
+  qbufRaw: ARRAY QBufWords * 4 + 64 OF CHAR;
 BEGIN
   mbuf := SYSTEM.ADR(qbufRaw[0]);
-  mbuf := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, mbuf + 15) - {0..3});
+  (* Align to 64-byte cache line boundary *)
+  mbuf := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, mbuf + 63) - {0..5});
 
   i := 0;
   PutWord(mbuf + i, QBufWords * 4); INC(i, 4);
@@ -198,10 +225,15 @@ BEGIN
   (* End tag *)
   PutWord(mbuf + i, TagEnd); INC(i, 4);
 
-  DSB;
-  MboxWriteMsg(mbuf, MboxChanProp);
+  (* Flush ARM Data Cache to ensure RAM matches buffer *)
+  FlushDCache(mbuf, QBufWords * 4);
+
+  (* Write using the VideoCore Bus Address alias *)
+  MboxWriteMsg(GetBusAdr(mbuf), MboxChanProp);
   resp := MboxReadMsg(MboxChanProp);
-  DSB;
+
+  (* Invalidate cache to ensure CPU reads fresh VideoCore response from RAM *)
+  FlushDCache(mbuf, QBufWords * 4);
 
   resp := GetWord(mbuf + 4);
   IF resp # SYSTEM.VAL(LONGINT, 80000000H) THEN RETURN FALSE END;
@@ -218,9 +250,9 @@ END QueryDisplay;
 PROCEDURE InitFB(VAR w, h, d: LONGINT; VAR adr, size, pitch: LONGINT): BOOLEAN;
 VAR mbuf, resp: LONGINT; i: LONGINT;
 BEGIN
-  (* Align mbufRaw address to 16 bytes *)
+  (* Align to 64-byte cache line boundary *)
   mbuf := SYSTEM.ADR(mbufRaw[0]);
-  mbuf := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, mbuf + 15) - {0..3});
+  mbuf := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, mbuf + 63) - {0..5});
 
   (* Build mailbox property tag message buffer *)
   i := 0;
@@ -270,15 +302,17 @@ BEGIN
   (* End tag *)
   PutWord(mbuf + i, TagEnd); INC(i, 4);
 
-  DSB;
+  (* Flush ARM Data Cache to ensure RAM matches buffer *)
+  FlushDCache(mbuf, BufWords * 4);
 
-  (* Send the message via mailbox channel 8 *)
-  MboxWriteMsg(mbuf, MboxChanProp);
+  (* Send the message via mailbox channel 8 using VC Bus Address *)
+  MboxWriteMsg(GetBusAdr(mbuf), MboxChanProp);
 
   (* Read the response *)
   resp := MboxReadMsg(MboxChanProp);
 
-  DSB;
+  (* Invalidate cache to ensure CPU reads fresh VideoCore response from RAM *)
+  FlushDCache(mbuf, BufWords * 4);
 
   (* Check response code at word 1 *)
   resp := GetWord(mbuf + 4);

@@ -325,14 +325,6 @@ CODE {SYSTEM.arm}
   DCW 00F15H, 0EE07H
 END InvalidateICache;
 
-(* Invalidate data cache (by set/way - simplified: invalidate all).
-  MCR p15, 0, R0, c7, c6, 0 = 0xEE070F16  -- Invalidate entire data cache *)
-PROCEDURE -InvalidateDCache;
-CODE {SYSTEM.arm}
-  MOV R0, #0
-  DCW 00F16H, 0EE07H
-END InvalidateDCache;
-
 (* Read VFP Floating-Point Status and Control Register*)
 PROCEDURE -GetFPSCR(): SET;
 CODE {SYSTEM.arm}
@@ -418,14 +410,35 @@ BEGIN
   SemiWriteC(c)
 END WriteChar;
 
+(* Write a NUL-terminated string via ARM semihosting with runtime CPU detection. *)
+PROCEDURE -SemiWrite0*(adr: LONGINT);
+CODE {SYSTEM.arm}
+  LDR  R1, [R11, #8]       (* load memory address parameter into R1 *)
+  MOV  R0, #4              (* SYS_WRITE0 *)
+  
+  DCD 0EE102F10H           (* MRC p15, 0, r2, c0, c0, 0  ; Read CPU ID into R2 *)
+  DCD 0E2022A0FH           (* AND r2, r2, #0xF000        ; Mask ID *)
+  DCD 0E3520A0DH           (* CMP r2, #0xD000            ; Check if Cortex-A53 (RPi 3) *)
+  DCD 01A000001H           (* BNE +1                     ; If NOT Cortex-A53, jump over HLT and B *)
+  DCD 0E10F0070H           (* HLT 0xF000                 ; Cortex-A53 Semihosting Trap *)
+  DCD 0EA000000H           (* B +0                       ; Jump over SVC *)
+  DCD 0EF123456H           (* SVC 0x123456               ; Cortex-A7 (QEMU) Semihosting Trap *)
+END SemiWrite0;
+
 PROCEDURE WriteString*(s: ARRAY OF CHAR);
-VAR i: INTEGER;
-BEGIN i := 0;  WHILE s[i] # 0X DO WriteChar(s[i]);  INC(i) END
+(* VAR i: INTEGER;
+BEGIN i := 0;  WHILE s[i] # 0X DO WriteChar(s[i]);  INC(i) END *)
+BEGIN SemiWrite0(SYSTEM.ADR(s[0])) (* much faster on a real raspi *)
 END WriteString;
 
 PROCEDURE WriteLn*;
 BEGIN WriteChar(0DX);  WriteChar(0AX)
 END WriteLn;
+
+PROCEDURE Hello*(s: ARRAY OF CHAR);
+BEGIN
+  WriteString(s); WriteLn
+END Hello;
 
 (* Write x as a decimal number. w is the field width. *)
 PROCEDURE WriteInt*(x, w: LONGINT);
@@ -573,22 +586,11 @@ BEGIN
   ELSE memTop := DefaultRAMSize
   END;
 
-  (* Robust ATAGS pointer search:
-     The multibootlinker pushed R2 onto the stack just before calling us.
-     StackOrg points near the top of the stack. We scan upwards a few bytes 
-     to find a pointer that points to the ATAG_CORE magic number. *)
+  (* The Raspberry Pi and QEMU raspi2b consistently place ATAGS at 0x100.
+     We just check 0x104 for the ATAG_CORE magic number (0x54410001). *)
   atagsPtr := 0;
-  ptr := StackOrg;
-  WHILE (atagsPtr = 0) & (ptr <= StackOrg + 128) DO
-    val := GetWord(ptr);
-    (* Must be a valid, aligned RAM address *)
-    IF (val > 0) & (val < 10000000H) & (val MOD 4 = 0) THEN
-      tagId := GetWord(val + 4);
-      IF tagId = 54410001H THEN (* ATAG_CORE magic number *)
-        atagsPtr := val
-      END
-    END;
-    INC(ptr, 4)
+  IF GetWord(100H + 4) = 54410001H THEN
+    atagsPtr := 100H
   END;
 
   (* Fallback: Check the legacy hardcoded address (0x100) just in case *)
@@ -696,6 +698,8 @@ BEGIN
     cmdlineBuf[i] := "t"; INC(i);
     cmdlineBuf[i] := 0X; INC(i);  (* command end *)
     cmdlineBuf[i] := 0X           (* double-NUL terminator *)
+  ELSE
+    Hello("ATAGS found"); (* TEST *)
   END
 END ReadBootTable;
 
@@ -1766,7 +1770,6 @@ BEGIN
   (* Invalidate TLB and caches *)
   InvalidateTLB;
   InvalidateICache;
-  InvalidateDCache;
   DataSyncBarrier;
   InstrSyncBarrier;
 
@@ -1907,8 +1910,10 @@ BEGIN
   CheckMemory;
   heapTop := memTop;
 
+  Hello("InitMMU");
   InitMMU;
 
+  Hello("InitTracing");
   InitTracing(heapTop);
 
   version := "ARM Native v2.3.7";
@@ -1917,7 +1922,9 @@ BEGIN
   EnableGC := DefaultEnableGC;
   DisableGC := DefaultDisableGC;
 
+  Hello("InitHeap");
   InitHeap;
+  Hello("InitRuntime");
   InitRuntime;
 
   InitInterrupts;
@@ -1925,5 +1932,6 @@ BEGIN
 
   InitTimer;
   InitClock;
+  Hello("Kernel ready!");
 
 END Kernel.
