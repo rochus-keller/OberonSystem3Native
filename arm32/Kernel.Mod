@@ -54,6 +54,12 @@ CONST
   MaxInts = 4;  (* max handlers per interrupt slot *)
   IDTSize = 48;  (* total interrupt slots: 0..31 = exceptions, 32..47 = IRQ0..15 *)
   MaxFrames = 10;  (* max stack frames shown in ShowState *)
+  
+  (* Mini UART (UART1) base addresses for BCM2836/2837 *)
+  AuxEnables = 3F215004H; (* AUX Enables Register *)
+  Uart1Io = 3F215040H;    (* Mini UART I/O Data Register *)
+  Uart1Lsr = 3F215054H;   (* Mini UART Line Status Register *)
+  LogNone = 0; LogUart = 1; LogSemi = 2; (* semihosting, requires Jtag *)
 
 TYPE
   ADDRESS = LONGINT;
@@ -141,10 +147,10 @@ VAR
   break*: BOOLEAN;
   copro*: BOOLEAN;
   inGC*: BOOLEAN;
+  logMode: SHORTINT; (* none, uart, semi *)
   EnableGC*, DisableGC*: Proc;
   timer*: Proc;
   runtime*: ARRAY 3 OF ADDRESS;  (* [0]=NewRec, [1]=NewSys, [2]=NewArr *)
-  traceConsole*: BOOLEAN;
   shutdown*: LONGINT;
   ticks*: LONGINT;
 
@@ -164,7 +170,9 @@ VAR
 
   (* Tracing *)
   traceBufAdr, traceBufSize, traceHead, traceTail, traceMark: LONGINT;
-
+  uartDataReg, uartFlagReg: LONGINT;
+  isMiniUart: BOOLEAN;
+  
   (* Config *)
   configadr: ADDRESS;
   cmdlineBuf: ARRAY 1024 OF CHAR;  (* parsed config: key0 NUL val0 NUL ... NUL NUL *)
@@ -405,9 +413,32 @@ CODE {SYSTEM.arm}
   DCD 0EF123456H           (* SVC 0x123456               ; Cortex-A7 (QEMU) Semihosting Trap *)
 END SemiWriteC;
 
+PROCEDURE UartWriteC*(c: CHAR);
+VAR status: LONGINT;
+BEGIN
+  (* Convert LF to CRLF for standard serial terminals *)
+  IF c = 0AX THEN WriteChar(0DX) END;
+  
+  IF isMiniUart THEN
+    (* Mini UART: Bit 5 of Line Status Register is Transmitter Empty (1 = Empty) *)
+    REPEAT 
+      status := GetWord(uartFlagReg) 
+    UNTIL SYSTEM.VAL(SET, status) * {5} # {};
+  ELSE
+    (* PL011: Bit 5 of Flag Register is Transmit FIFO Full (1 = Full) *)
+    REPEAT 
+      status := GetWord(uartFlagReg) 
+    UNTIL SYSTEM.VAL(SET, status) * {5} = {};
+  END;
+  
+  PutWord(uartDataReg, ORD(c))
+END UartWriteC;
+
 PROCEDURE WriteChar*(c: CHAR);
 BEGIN
-  SemiWriteC(c)
+  IF logMode = LogSemi THEN SemiWriteC(c)
+  ELSIF logMode = LogUart THEN UartWriteC(c)
+  END
 END WriteChar;
 
 (* Write a NUL-terminated string via ARM semihosting with runtime CPU detection. *)
@@ -426,9 +457,11 @@ CODE {SYSTEM.arm}
 END SemiWrite0;
 
 PROCEDURE WriteString*(s: ARRAY OF CHAR);
-(* VAR i: INTEGER;
-BEGIN i := 0;  WHILE s[i] # 0X DO WriteChar(s[i]);  INC(i) END *)
-BEGIN SemiWrite0(SYSTEM.ADR(s[0])) (* much faster on a real raspi *)
+VAR i: INTEGER;
+BEGIN 
+  IF logMode = LogSemi THEN SemiWrite0(SYSTEM.ADR(s[0]))
+  ELSE i := 0;  WHILE s[i] # 0X DO WriteChar(s[i]);  INC(i) END 
+  END
 END WriteString;
 
 PROCEDURE WriteLn*;
@@ -568,7 +601,64 @@ BEGIN
   traceMark := 0
 END InitTracing;
 
+(* Read Main ID Register (MIDR) to detect CPU type *)
+PROCEDURE -GetCpuId(): LONGINT;
+CODE {SYSTEM.arm}
+  DCW 00F10H, 0EE10H  (* MRC p15, 0, R0, c0, c0, 0 *)
+END GetCpuId;
 
+PROCEDURE InitUart;
+VAR cpuId, val: LONGINT;
+BEGIN
+  cpuId := GetCpuId();
+  
+  (* Check bits [15:4] for the primary part number. 0xD03 is Cortex-A53 (Raspberry Pi 3) *)
+  IF SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, cpuId) * {4..15}) = 0D030H THEN
+    (* BARE METAL PI 3B *)
+    isMiniUart := TRUE;
+    uartDataReg := 3F215040H; (* Mini UART I/O Data *)
+    uartFlagReg := 3F215054H; (* Mini UART Line Status *)
+    
+    (* Enable Mini UART in the AUX peripheral block (Bit 0) *)
+    val := GetWord(3F215004H);
+    PutWord(3F215004H, SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) + {0}));
+    
+    (* Map GPIO 14/15 to ALT5 (Mini UART). GPIO 14 = bits 12..14, GPIO 15 = bits 15..17 *)
+    val := GetWord(3F200004H);
+    val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) - {12..17}); (* Clear *)
+    val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) + {13, 16}); (* Set to 010b (ALT5) *)
+    PutWord(3F200004H, val);
+    
+  ELSE
+    (* QEMU raspi2b (Cortex-A7) *)
+    isMiniUart := FALSE;
+    uartDataReg := 3F201000H; (* PL011 Data Register *)
+    uartFlagReg := 3F201018H; (* PL011 Flag Register *)
+    
+    (* Map GPIO 14/15 to ALT0 (PL011). Set to 100b (ALT0) *)
+    val := GetWord(3F200004H);
+    val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) - {12..17});
+    val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) + {14, 17});
+    PutWord(3F200004H, val);
+    
+    (* Ensure PL011 UART is enabled, and transmitter/receiver are on *)
+    val := GetWord(3F201030H);
+    val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) + {0, 8, 9}); 
+    PutWord(3F201030H, val);
+  END
+END InitUart;
+
+(* Read TracePort and initialize *)
+PROCEDURE InitLog();
+VAR s: ARRAY 8 OF CHAR;
+BEGIN
+  GetConfig("TracePort", s);
+  IF s = "0" THEN logMode := LogNone
+  ELSIF s = "1" THEN logMode := LogUart; InitUart
+  ELSIF s = "2" THEN logMode := LogSemi
+  ELSE logMode := LogNone
+  END
+END InitLog;
 
 (* Parse the image header to find RAM size, then
   extract the command-line config string from ATAGS. *)
@@ -656,6 +746,7 @@ BEGIN
 
   (* Fallback: if no ATAG_CMDLINE was found, use built-in default config. *)
   IF cmdlineBuf[0] = 0X THEN
+    logMode := LogUart; InitUart;
     WriteString("Kernel: no ATAGS, using default boot config"); WriteLn;
     i := 0;
     cmdlineBuf[i] := "D"; INC(i); cmdlineBuf[i] := "i"; INC(i);
@@ -699,6 +790,7 @@ BEGIN
     cmdlineBuf[i] := 0X; INC(i);  (* command end *)
     cmdlineBuf[i] := 0X           (* double-NUL terminator *)
   ELSE
+    InitLog;
     Hello("ATAGS found"); (* TEST *)
   END
 END ReadBootTable;
@@ -1904,16 +1996,15 @@ BEGIN
   SetFPSCR((GetFPSCR() - {8..12, 22, 23, 24}) + {25});
 
   tspeed := 0;  tbase := 0;  traceBufAdr := 0;  timer := NIL;
-  traceConsole := FALSE;  shutdown := 0;  ticks := 0;
+  shutdown := 0;  ticks := 0;
+  logMode := LogNone;
 
   ReadBootTable;
   CheckMemory;
   heapTop := memTop;
 
-  Hello("InitMMU");
   InitMMU;
 
-  Hello("InitTracing");
   InitTracing(heapTop);
 
   version := "ARM Native v2.3.7";
@@ -1922,9 +2013,7 @@ BEGIN
   EnableGC := DefaultEnableGC;
   DisableGC := DefaultDisableGC;
 
-  Hello("InitHeap");
   InitHeap;
-  Hello("InitRuntime");
   InitRuntime;
 
   InitInterrupts;
@@ -1932,6 +2021,5 @@ BEGIN
 
   InitTimer;
   InitClock;
-  Hello("Kernel ready!");
 
 END Kernel.
