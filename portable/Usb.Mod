@@ -141,8 +141,8 @@ UsbDevice* = POINTER TO RECORD
   MaxPacketSizeIn* : ARRAY 16 OF INTEGER;
   MaxPacketSizeOut* : ARRAY 16 OF INTEGER;
   Controller: UsbController; (* private, so every transaction can only be started by Usb.Mod *)
-  Port : INTEGER;
-  Parent : UsbDevice;
+  Port* : INTEGER;
+  Parent* : UsbDevice;
   HubFlag : BOOLEAN;
   Ports : INTEGER;
   HubTime2Good : INTEGER;
@@ -670,7 +670,7 @@ BEGIN
  IF intfc.bInterfaceClass # 9 THEN RETURN FALSE; END;
  IF intfc.bInterfaceSubClass # 0 THEN RETURN FALSE; END;
  IF intfc.bNumEndpoints # 1 THEN RETURN FALSE; END;
- IF intfc.bInterfaceProtocol # 0 THEN RETURN FALSE; END;
+ IF intfc.bInterfaceProtocol > 2 THEN RETURN FALSE; END;
 
  res := GetDescriptor(dev, 128+32 , 29H, 0, 8, Buffer);
  IF res = FALSE THEN RETURN FALSE END;
