@@ -35,6 +35,19 @@ Here is a screenshot of the IDE and the running system.
 
 ![Oberon System on QEMU ARMv7](http://software.rochus-keller.ch/FullSystemArm_2026-04-01_20-14-38.png)
 
+### Status on 2026-04-06
+
+After several days of debugging directly on the rpi 3b hardware via Jtag, the SD card and display drivers work. There were many surprises, starting from the completely
+different ATAGS string (which required a format and parser refactoring), unexpected alignment and cache handling requirements, different semihosting operators (finally
+adding plain UART which even works much faster) and configuration syntax changes. The USB driver though is a completely different leage. The usual timing issues were
+managable, even the PHY, gating and clock issues. It eventually also turned out that the hub cannot be operated at full speed, only at high speed, which required
+the implementation of split transactions to correctly communicate with connected mouse/keyboard only running at full speed. But so far I still didn't manage to make it work.
+The DWC2 controller is ready, the hub with 5 ports is detected, but the setup of the connected devices continues to fail. Now that my Easter break is over, I have to move on to something else and put this project on hold. Maybe I’ll come up with the right idea next week, or maybe someone else will give the driver a try (which would be very welcome).
+
+Here is my setup at the moment when the display started working:
+
+![Debugging Setup](http://software.rochus-keller.ch/Raspi3bJtagSetup.jpg)
+
 ### How to build
 
 The scripts required to build the system, statically link the inner core modules, create and populate the AosFs drive and run the system on QEMU are found in the 

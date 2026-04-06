@@ -140,6 +140,7 @@ CONST
   bHcStall       = 3;
   bHcNak         = 4;
   bHcAck         = 5;
+  bHcNyet        = 6;
   bHcXacterr     = 7;
   bHcBblerr      = 8;
   bHcDatatglerr  = 10;
@@ -168,12 +169,15 @@ TYPE
 
   Dwc2ConSpec = POINTER TO RECORD (Usb.UsbConSpecData)
     chan: INTEGER;       (* allocated channel number, or -1 *)
+    splitState: INTEGER;
+    ssplitVal: LONGINT;
+    csplitVal: LONGINT;
   END;
 
 VAR
   FirstController: Dwc2Controller;
   ControllerCount: INTEGER;
-  
+    
   mbufRaw: ARRAY 128 OF CHAR;
   chanBufRaw: ARRAY NumChannels * MaxTransferSize + 64 OF CHAR;
   chanBuf: ARRAY NumChannels OF LONGINT;
@@ -241,7 +245,6 @@ END InvalidateDCache;
 PROCEDURE GetBusAdr(adr: LONGINT): LONGINT;
 BEGIN RETURN SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, adr) + {30, 31})
 END GetBusAdr;
-
 
 PROCEDURE ReadReg(offset: LONGINT): LONGINT;
 BEGIN RETURN GetWord(USBBase + offset)
@@ -408,7 +411,7 @@ BEGIN
   (* Configure AHB: enable DMA, wait for AXI writes, clear AXI burst bits *)
   val := ReadReg(rGAHBCFG);
   val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val)
-    - {bAhbGlblIntrEn, 1, 2}             (* clear global int + AXI burst bits 1-2 *)
+    - {bAhbGlblIntrEn, 1, 2}             (* clear global int + AXI burst bits 1-2 *)          
     + {bAhbWaitAxi, bAhbDmaEn});
   WriteReg(rGAHBCFG, val);
 
@@ -423,7 +426,7 @@ PROCEDURE InitHost(): BOOLEAN;
 CONST rPCGCCTL = 0E00H;   (* Power and Clock Gating Control *)
 VAR val, rxfsiz, nptxfsiz, i: LONGINT;
 BEGIN
-  WriteReg(rPCGCCTL, 0);  (* Restart PHY clock ? ensure no clock gating *)
+  WriteReg(rPCGCCTL, 0);  (* Restart PHY clock - ensure no clock gating *)
   val := ReadReg(rGUSBCFG);
   val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) + {bUsbForceHost});
   WriteReg(rGUSBCFG, val);
@@ -431,9 +434,7 @@ BEGIN
 
   val := ReadReg(rHCFG);
   (* High-Speed mode for root internal hub (clear FSLSSupp and FSLSPclkSel) *)
-  (* val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) - {0, 1, 2});  *)
-  (* Full-Speed mode for root internal hub  *)
-  val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) - {1} + {0, 2}); 
+  val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) - {0, 1, 2}); 
   WriteReg(rHCFG, val);
 
   rxfsiz := 1024; nptxfsiz := 1024;
@@ -482,50 +483,48 @@ BEGIN
          - {bPrtConnDet, bPrtEna, bPrtEnaChg, bPrtOcaChg, bPrtRst});
   WriteReg(rHPRT, val);
 
-  (* NEW: Wait for port to actually become enabled (up to 500ms) *)
+  (* Wait for port to actually become enabled (up to 500ms) *)
   IF ~WaitForBit(rHPRT, bPrtEna, TRUE, 500) THEN
     Kernel.WriteString("UsbDriver: port not enabled after reset");
     Kernel.WriteLn;
     RETURN FALSE
   END;
 
-  (* NEW: Allow SOF frames to stabilize and device to settle *)
+  (* Allow SOF frames to stabilize and device to settle *)
   MilliWait(100);
 
   RETURN TRUE
 END ResetRootPort;
 
-
-
 PROCEDURE WaitForChannelComplete(ch: INTEGER; timeout: LONGINT): SET;
-VAR t: Kernel.MilliTimer; chint: SET; intofs, val: LONGINT;
+VAR t: Kernel.MilliTimer; chint: SET; intofs, val, splt: LONGINT;
 BEGIN
   intofs := rHCINT0 + ch * chanStep;
   Kernel.SetTimer(t, timeout);
   LOOP
     chint := SYSTEM.VAL(SET, ReadReg(intofs));
-
-    (* Primary exit: channel has halted *)
     IF bHcChhltd IN chint THEN
-      IF bHcNak IN chint THEN
-        (* NAK retry: clear NAK+ChhLtd, re-enable channel *)
+      splt := ReadReg(rHCSPLT0 + ch * chanStep);
+      IF (bHcNak IN chint) & (SYSTEM.VAL(SET, splt) * {31} = {}) THEN
         WriteReg(intofs, SYSTEM.VAL(LONGINT, {bHcNak, bHcChhltd}));
         val := ReadReg(rHCCHAR0 + ch * chanStep);
         val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) + {bCharChen} - {bCharChdis});
         WriteReg(rHCCHAR0 + ch * chanStep, val)
       ELSE
-        EXIT  (* XferComp, Stall, XactErr, etc. ? channel is properly halted *)
+        IF ~(bHcXfercomp IN chint) & ~(bHcAck IN chint) & ~(bHcNyet IN chint) & ~(bHcNak IN chint) THEN
+          FlushTxFIFO(10H)
+        END;
+        EXIT
       END
     END;
-
-    (* Timeout: force-halt the channel *)
     IF Kernel.Expired(t) THEN
       val := ReadReg(rHCCHAR0 + ch * chanStep);
       val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) + {bCharChdis, bCharChen});
       WriteReg(rHCCHAR0 + ch * chanStep, val);
-      (* Wait for the forced halt to complete *)
       MilliWait(2);
-      chint := SYSTEM.VAL(SET, ReadReg(intofs)); EXIT
+      chint := SYSTEM.VAL(SET, ReadReg(intofs));
+      FlushTxFIFO(10H);
+      EXIT
     END
   END;
   WriteReg(intofs, SYSTEM.VAL(LONGINT, {0..31}));
@@ -556,9 +555,7 @@ BEGIN
   base := ch * chanStep;
   WriteReg(rHCINT0 + base, SYSTEM.VAL(LONGINT, {0..31}));
   WriteReg(rHCINTMSK0 + base, SYSTEM.VAL(LONGINT,
-    {bHcXfercomp, bHcChhltd, bHcAhberr, bHcStall, bHcNak, bHcAck, bHcXacterr, bHcBblerr, bHcDatatglerr}));
-
-  WriteReg(rHCSPLT0 + base, 0);
+    {bHcXfercomp, bHcChhltd, bHcAhberr, bHcStall, bHcNak, bHcAck, bHcNyet, bHcXacterr, bHcBblerr, bHcDatatglerr}));
 
   charVal := mps;  
   charVal := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, charVal) + SYSTEM.VAL(SET, ASH(endpoint MOD 16, charEpnumShift)));
@@ -567,6 +564,16 @@ BEGIN
   charVal := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, charVal) + SYSTEM.VAL(SET, ASH(eptype, charEptypeShift)));
   charVal := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, charVal) + SYSTEM.VAL(SET, ASH(1, charMcShift)));  
   charVal := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, charVal) + SYSTEM.VAL(SET, ASH(dev.Address, charDevaddrShift)));
+  
+  (* Schedule periodic transfers into the opposite microframe boundary *)
+  IF (eptype = eptInterrupt) OR (eptype = eptIso) THEN
+    IF TestBits(rHFNUM, {0}) THEN
+      charVal := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, charVal) - {29}); 
+    ELSE
+      charVal := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, charVal) + {29}); 
+    END
+  END;
+
   WriteReg(rHCCHAR0 + base, charVal);
 
   IF buflen > MaxTransferSize THEN buflen := MaxTransferSize END;
@@ -594,6 +601,75 @@ BEGIN
   DSB
 END StartChannel;
 
+PROCEDURE GetSplitInfo(dev: Usb.UsbDevice; VAR hubAddr, hubPort: INTEGER): BOOLEAN;
+VAR p, d: Usb.UsbDevice;
+BEGIN
+  IF (dev = NIL) OR dev.HighSpeed THEN RETURN FALSE END;
+  
+  d := dev; p := d.Parent;
+  WHILE (p # NIL) & (p # p.Parent) & ~p.HighSpeed DO
+    d := p; p := p.Parent
+  END;
+
+  IF (p # NIL) & (p # p.Parent) & p.HighSpeed THEN
+    hubAddr := p.Address; hubPort := d.Port + 1;
+    RETURN TRUE
+  END;
+
+  RETURN FALSE
+END GetSplitInfo;
+
+PROCEDURE ExecuteTransfer(ch: INTEGER; req: Usb.UsbTReq; endpoint, eptype: INTEGER;
+    dirIn: BOOLEAN; pid: INTEGER; buffer, buflen: LONGINT; mps: INTEGER; timeout: LONGINT): SET;
+VAR isSplit: BOOLEAN; ssplitVal, csplitVal: LONGINT; chint: SET; 
+    hubAddr, hubPort: INTEGER; t: Kernel.MilliTimer;
+BEGIN
+  Kernel.SetTimer(t, timeout);
+  isSplit := GetSplitInfo(req.Device, hubAddr, hubPort);
+  IF isSplit THEN
+    ssplitVal := SYSTEM.VAL(LONGINT, {31, 15, 14} + SYSTEM.VAL(SET, ASH(hubAddr, 7)) + SYSTEM.VAL(SET, hubPort));
+    csplitVal := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, ssplitVal) + {16});
+
+    LOOP
+      WriteReg(rHCSPLT0 + ch * chanStep, ssplitVal);
+      StartChannel(ch, req.Device, endpoint, eptype, dirIn, pid, buffer, buflen, mps);
+      chint := WaitForChannelComplete(ch, timeout);
+      
+      IF bHcXfercomp IN chint THEN RETURN chint END;
+      IF ~(bHcAck IN chint) THEN RETURN chint END;
+      
+      MilliWait(1); 
+      
+      LOOP
+        WriteReg(rHCSPLT0 + ch * chanStep, csplitVal);
+        
+        IF ~dirIn THEN
+          StartChannel(ch, req.Device, endpoint, eptype, dirIn, pid, 0, 0, mps);
+        ELSE
+          StartChannel(ch, req.Device, endpoint, eptype, dirIn, pid, buffer, buflen, mps);
+        END;
+        
+        chint := WaitForChannelComplete(ch, timeout);
+        
+        IF bHcXfercomp IN chint THEN RETURN chint END;
+        IF bHcNyet IN chint THEN
+          IF Kernel.Expired(t) THEN RETURN chint END;
+          MilliWait(1);
+        ELSIF bHcNak IN chint THEN
+          EXIT 
+        ELSE
+          RETURN chint
+        END
+      END;
+      IF Kernel.Expired(t) THEN RETURN chint END;
+    END
+  ELSE
+    WriteReg(rHCSPLT0 + ch * chanStep, 0);
+    StartChannel(ch, req.Device, endpoint, eptype, dirIn, pid, buffer, buflen, mps);
+    RETURN WaitForChannelComplete(ch, timeout)
+  END
+END ExecuteTransfer;
+
 PROCEDURE DoControlTransfer(con: Dwc2Controller; req: Usb.UsbTReq): SET;
 VAR ch: INTEGER; chint, status: SET; pid: INTEGER; dirIn: BOOLEAN; mps: INTEGER;
   restlen, curlen, databuf: LONGINT; datatoggle: BOOLEAN; timeout: LONGINT;
@@ -602,14 +678,17 @@ BEGIN
   ch := AllocateChannel(con);
   IF ch = -1 THEN RETURN Usb.ResInternal END;
 
-  mps := req.Device.Descriptor.bMaxPacketSize0; IF mps = 0 THEN mps := 8 END;
+  mps := req.Device.Descriptor.bMaxPacketSize0; 
+  IF mps = 0 THEN mps := 8 END;
+  (* Prevent Ethernet STALL during initial probing by overriding Usb.Mod's default 8 *)
+  IF req.Device.HighSpeed & (mps = 8) & (req.Device.Address = 0) THEN mps := 64 END;
+
   timeout := req.Timeout; IF timeout = 0 THEN timeout := 5000 END; IF timeout = -1 THEN timeout := 30000 END;
 
   SYSTEM.MOVE(req.ControlMessage, chanBuf[ch], 8);
   CleanDCache(chanBuf[ch], 8);
-  StartChannel(ch, req.Device, req.Endpoint MOD 16, eptControl, FALSE, pidSetup, 0, 8, mps);
+  chint := ExecuteTransfer(ch, req, req.Endpoint MOD 16, eptControl, FALSE, pidSetup, 0, 8, mps, timeout);
   
-  chint := WaitForChannelComplete(ch, timeout);
   IF ~(bHcXfercomp IN chint) THEN
     Kernel.WriteString("UsbDriver: Setup phase failed! HCINT: "); PrintHex(SYSTEM.VAL(LONGINT, chint)); Kernel.WriteLn;
     status := TranslateStatus(chint); IF status = {} THEN status := Usb.ResCRCTimeout END;
@@ -625,8 +704,7 @@ BEGIN
     WHILE restlen > 0 DO
       IF restlen > mps THEN curlen := mps ELSE curlen := restlen END;
       IF datatoggle THEN pid := pidData1 ELSE pid := pidData0 END;
-      StartChannel(ch, req.Device, req.Endpoint MOD 16, eptControl, dirIn, pid, databuf, curlen, mps);
-      chint := WaitForChannelComplete(ch, timeout);
+      chint := ExecuteTransfer(ch, req, req.Endpoint MOD 16, eptControl, dirIn, pid, databuf, curlen, mps, timeout);
 
       IF (dirIn) & (bHcXfercomp IN chint) & (databuf # 0) THEN
         InvalidateDCache(chanBuf[ch], curlen);
@@ -650,8 +728,7 @@ BEGIN
     dirIn := TRUE
   END;
 
-  StartChannel(ch, req.Device, req.Endpoint MOD 16, eptControl, dirIn, pidData1, 0, 0, mps);
-  chint := WaitForChannelComplete(ch, timeout);
+  chint := ExecuteTransfer(ch, req, req.Endpoint MOD 16, eptControl, dirIn, pidData1, 0, 0, mps, timeout);
   FreeChannel(con, ch);
   
   IF bHcXfercomp IN chint THEN RETURN Usb.ResOK 
@@ -679,8 +756,7 @@ BEGIN
   WHILE restlen > 0 DO
     IF restlen > pipesize THEN curlen := pipesize ELSE curlen := restlen END;
     IF datatoggle THEN pid := pidData1 ELSE pid := pidData0 END;
-    StartChannel(ch, req.Device, req.Endpoint MOD 16, eptBulk, dirIn, pid, databuf, curlen, pipesize);
-    chint := WaitForChannelComplete(ch, timeout);
+    chint := ExecuteTransfer(ch, req, req.Endpoint MOD 16, eptBulk, dirIn, pid, databuf, curlen, pipesize, timeout);
 
     IF (dirIn) & (bHcXfercomp IN chint) & (databuf # 0) THEN
       InvalidateDCache(chanBuf[ch], curlen);
@@ -719,8 +795,7 @@ BEGIN
   timeout := req.Timeout; IF timeout = 0 THEN timeout := 5000 END; IF timeout = -1 THEN timeout := 30000 END;
   IF datatoggle THEN pid := pidData1 ELSE pid := pidData0 END;
 
-  StartChannel(ch, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, req.Buffer, req.BufferLen, pipesize);
-  chint := WaitForChannelComplete(ch, timeout);
+  chint := ExecuteTransfer(ch, req, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, req.Buffer, req.BufferLen, pipesize, timeout);
 
   IF (dirIn) & (bHcXfercomp IN chint) & (req.Buffer # 0) THEN
     InvalidateDCache(chanBuf[ch], req.BufferLen);
@@ -739,21 +814,34 @@ BEGIN
 END DoInterruptTransfer;
 
 PROCEDURE PrepareAsyncInterrupt(con: Dwc2Controller; req: Usb.UsbTReq): SET;
-VAR ch, pid, pipesize: INTEGER; dirIn, datatoggle: BOOLEAN; spec: Dwc2ConSpec;
+VAR ch, pid, pipesize: INTEGER; dirIn, datatoggle, isSplit: BOOLEAN; spec: Dwc2ConSpec;
+    hubAddr, hubPort: INTEGER;
 BEGIN
   ch := AllocateChannel(con);
   IF ch = -1 THEN RETURN Usb.ResInternal END;
+
+  NEW(spec); spec.chan := ch; req.ConSpec := spec; req.Status := Usb.ResInProgress;
+  req.next := con.TReqList; con.TReqList := req;
 
   dirIn := SYSTEM.VAL(SET, req.Endpoint) * {7} # {};
   IF dirIn THEN datatoggle := req.Device.DataToggleIn[req.Endpoint MOD 16]; pipesize := req.Device.MaxPacketSizeIn[req.Endpoint MOD 16]
   ELSE datatoggle := req.Device.DataToggleOut[req.Endpoint MOD 16]; pipesize := req.Device.MaxPacketSizeOut[req.Endpoint MOD 16] END;
   IF pipesize = 0 THEN pipesize := 8 END;
-
   IF datatoggle THEN pid := pidData1 ELSE pid := pidData0 END;
-  StartChannel(ch, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, req.Buffer, req.BufferLen, pipesize);
 
-  NEW(spec); spec.chan := ch; req.ConSpec := spec; req.Status := Usb.ResInProgress;
-  req.next := con.TReqList; con.TReqList := req;
+  isSplit := GetSplitInfo(req.Device, hubAddr, hubPort);
+  IF isSplit THEN
+    spec.ssplitVal := SYSTEM.VAL(LONGINT, {31, 15, 14} + SYSTEM.VAL(SET, ASH(hubAddr, 7)) + SYSTEM.VAL(SET, hubPort));
+    spec.csplitVal := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, spec.ssplitVal) + {16});
+    spec.splitState := 1;
+    WriteReg(rHCSPLT0 + ch * chanStep, spec.ssplitVal);
+  ELSE
+    spec.ssplitVal := 0; spec.csplitVal := 0;
+    spec.splitState := 0;
+    WriteReg(rHCSPLT0 + ch * chanStep, 0);
+  END;
+
+  StartChannel(ch, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, req.Buffer, req.BufferLen, pipesize);
   RETURN Usb.ResInProgress
 END PrepareAsyncInterrupt;
 
@@ -778,13 +866,14 @@ BEGIN RETURN 1 END UpcallGetPortCount;
 
 PROCEDURE UpcallEnablePort(con: Usb.UsbController; port: INTEGER);
 VAR dummy: BOOLEAN;
-BEGIN dummy := ResetRootPort() END UpcallEnablePort;
+BEGIN 
+  dummy := ResetRootPort() 
+END UpcallEnablePort;
 
 PROCEDURE UpcallDisablePort(con: Usb.UsbController; port: INTEGER);
 VAR val: LONGINT;
 BEGIN
   val := ReadReg(rHPRT);
-  (* W1C hardware bit: Write 1 to clear/disable the port *)
   val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) - {bPrtConnDet, bPrtEnaChg, bPrtOcaChg});
   val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) + {bPrtEna});
   WriteReg(rHPRT, val)
@@ -805,37 +894,87 @@ PROCEDURE UpcallProbeTrans(con: Usb.UsbController; req: Usb.UsbTReq);
 VAR spec: Dwc2ConSpec; chint: SET; intofs: LONGINT; dirIn, datatoggle: BOOLEAN; pid, pipesize: INTEGER;
 BEGIN
   IF req.ConSpec = NIL THEN req.Status := Usb.ResInternal; RETURN END;
-  spec := req.ConSpec(Dwc2ConSpec); intofs := rHCINT0 + spec.chan * chanStep; chint := SYSTEM.VAL(SET, ReadReg(intofs));
+  spec := req.ConSpec(Dwc2ConSpec); intofs := rHCINT0 + spec.chan * chanStep; 
+  chint := SYSTEM.VAL(SET, ReadReg(intofs));
 
+  IF chint * {bHcXfercomp, bHcChhltd, bHcAhberr, bHcStall, bHcNak, bHcAck, bHcNyet, bHcXacterr, bHcBblerr, bHcDatatglerr} = {} THEN
+    RETURN
+  END;
+
+  dirIn := SYSTEM.VAL(SET, req.Endpoint) * {7} # {};
+  IF dirIn THEN datatoggle := req.Device.DataToggleIn[req.Endpoint MOD 16]; pipesize := req.Device.MaxPacketSizeIn[req.Endpoint MOD 16]
+  ELSE datatoggle := req.Device.DataToggleOut[req.Endpoint MOD 16]; pipesize := req.Device.MaxPacketSizeOut[req.Endpoint MOD 16] END;
+  IF pipesize = 0 THEN pipesize := 8 END;
+  IF datatoggle THEN pid := pidData1 ELSE pid := pidData0 END;
+
+  (* Non-blocking Split Transaction State Machine *)
+  IF spec.splitState = 1 THEN
+    IF bHcChhltd IN chint THEN
+      WriteReg(intofs, SYSTEM.VAL(LONGINT, {0..31})); 
+      IF bHcAck IN chint THEN
+        spec.splitState := 2; 
+        WriteReg(rHCSPLT0 + spec.chan * chanStep, spec.csplitVal);
+        IF ~dirIn THEN
+          StartChannel(spec.chan, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, 0, 0, pipesize);
+        ELSE
+          StartChannel(spec.chan, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, req.Buffer, req.BufferLen, pipesize);
+        END;
+      ELSE
+        WriteReg(rHCSPLT0 + spec.chan * chanStep, spec.ssplitVal);
+        StartChannel(spec.chan, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, req.Buffer, req.BufferLen, pipesize);
+      END;
+      RETURN
+    END;
+    RETURN
+  ELSIF spec.splitState = 2 THEN
+    IF bHcChhltd IN chint THEN
+      IF ~(bHcXfercomp IN chint) THEN 
+        WriteReg(intofs, SYSTEM.VAL(LONGINT, {0..31}));
+        IF bHcNyet IN chint THEN
+          WriteReg(rHCSPLT0 + spec.chan * chanStep, spec.csplitVal);
+          IF ~dirIn THEN
+            StartChannel(spec.chan, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, 0, 0, pipesize);
+          ELSE
+            StartChannel(spec.chan, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, req.Buffer, req.BufferLen, pipesize);
+          END;
+        ELSE 
+          spec.splitState := 1;
+          WriteReg(rHCSPLT0 + spec.chan * chanStep, spec.ssplitVal);
+          StartChannel(spec.chan, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, req.Buffer, req.BufferLen, pipesize);
+        END;
+        RETURN
+      END
+    ELSE
+      RETURN
+    END
+  END;
+
+  (* Final Result Handling *)
   IF (bHcXfercomp IN chint) OR (bHcStall IN chint) OR (bHcAhberr IN chint) OR (bHcBblerr IN chint) THEN
     WriteReg(intofs, SYSTEM.VAL(LONGINT, {0..31}));
-
     IF bHcXfercomp IN chint THEN
       req.Status := Usb.ResOK;
-      dirIn := SYSTEM.VAL(SET, req.Endpoint) * {7} # {};
       IF dirIn & (req.Buffer # 0) & (req.BufferLen > 0) THEN
         InvalidateDCache(chanBuf[spec.chan], req.BufferLen);
         SYSTEM.MOVE(chanBuf[spec.chan], req.Buffer, req.BufferLen)
       END;
+      IF dirIn THEN req.Device.DataToggleIn[req.Endpoint MOD 16] := ~datatoggle
+      ELSE req.Device.DataToggleOut[req.Endpoint MOD 16] := ~datatoggle END
+    ELSE
+      req.Status := TranslateStatus(chint); 
+      IF req.Status = {} THEN req.Status := Usb.ResCRCTimeout END
+    END;
+    RETURN
+  END;
 
-      IF dirIn THEN datatoggle := req.Device.DataToggleIn[req.Endpoint MOD 16]; req.Device.DataToggleIn[req.Endpoint MOD 16] := ~datatoggle
-      ELSE datatoggle := req.Device.DataToggleOut[req.Endpoint MOD 16]; req.Device.DataToggleOut[req.Endpoint MOD 16] := ~datatoggle END
-    ELSE
-      req.Status := TranslateStatus(chint); IF req.Status = {} THEN req.Status := Usb.ResCRCTimeout END
-    END
-  ELSIF bHcChhltd IN chint THEN
+  (* Non-Split NAK Handling *)
+  IF bHcChhltd IN chint THEN
+    WriteReg(intofs, SYSTEM.VAL(LONGINT, {0..31}));
     IF bHcNak IN chint THEN
-      WriteReg(intofs, SYSTEM.VAL(LONGINT, {0..31}));
-      dirIn := SYSTEM.VAL(SET, req.Endpoint) * {7} # {};
-      IF dirIn THEN datatoggle := req.Device.DataToggleIn[req.Endpoint MOD 16]; pipesize := req.Device.MaxPacketSizeIn[req.Endpoint MOD 16]
-      ELSE datatoggle := req.Device.DataToggleOut[req.Endpoint MOD 16]; pipesize := req.Device.MaxPacketSizeOut[req.Endpoint MOD 16] END;
-      IF pipesize = 0 THEN pipesize := 8 END;
-      IF datatoggle THEN pid := pidData1 ELSE pid := pidData0 END;
       StartChannel(spec.chan, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, req.Buffer, req.BufferLen, pipesize);
-      RETURN 
     ELSE
-      WriteReg(intofs, SYSTEM.VAL(LONGINT, {0..31}));
-      req.Status := TranslateStatus(chint); IF req.Status = {} THEN req.Status := Usb.ResCRCTimeout END
+      req.Status := TranslateStatus(chint); 
+      IF req.Status = {} THEN req.Status := Usb.ResCRCTimeout END
     END
   END
 END UpcallProbeTrans;
@@ -878,6 +1017,15 @@ BEGIN
   IF pipesize = 0 THEN pipesize := 8 END;
   IF datatoggle THEN pid := pidData1 ELSE pid := pidData0 END;
   req.Status := Usb.ResInProgress;
+  
+  IF spec.ssplitVal # 0 THEN
+    spec.splitState := 1;
+    WriteReg(rHCSPLT0 + spec.chan * chanStep, spec.ssplitVal);
+  ELSE
+    spec.splitState := 0;
+    WriteReg(rHCSPLT0 + spec.chan * chanStep, 0);
+  END;
+
   WriteReg(rHCINT0 + spec.chan * chanStep, SYSTEM.VAL(LONGINT, {0..31}));
   StartChannel(spec.chan, req.Device, req.Endpoint MOD 16, eptInterrupt, dirIn, pid, req.Buffer, req.BufferLen, pipesize)
 END UpcallRestartInterrupt;
@@ -917,6 +1065,9 @@ BEGIN
   con.idx := ControllerCount; con.portCount := 1; con.chanAllocated := {}; con.TReqList := NIL;
   INC(ControllerCount); FirstController := con;
   Usb.RegisterController(con);
+  
+  (* The Root Hub itself is natively High-Speed. *)
+  con.RootHub.HighSpeed := TRUE;
 
   DMB; Kernel.WriteString("UsbDriver: controller initialized"); Kernel.WriteLn;
   RETURN TRUE
@@ -946,33 +1097,3 @@ END Init;
 BEGIN
   ControllerCount := 0; FirstController := NIL; Kernel.InstallTermHandler(Cleanup); Init
 END UsbDriver.
-
-(* Console output:
-
-000DFDA8 UsbSystem
-000E1B58 Usb
-000F1A08 UsbDriver
-UsbDriver: InitController start
-UsbDriver: powering on USB
-UsbDriver: power on OK
-UsbDriver: controller initialized
-UsbDriver: USB DWC2 controller ready
-Usb: Hub with 5 ports detected.
-UsbDriver: Setup phase failed! HCINT: 82
-Usb: Address Setup failed.
-Usb: Retrying to connect device.
-UsbDriver: Setup phase failed! HCINT: 82
-Usb: Address Setup failed.
-Usb: Retrying to connect device.
-UsbDriver: Setup phase failed! HCINT: 82
-Usb: Address Setup failed.
-Usb: Retrying to connect device.
-UsbDriver: Setup phase failed! HCINT: 82
-Usb: Address Setup failed.
-Usb: Retrying to connect device.
-Usb: FATAL, disabling port. Replug connector of device!
-000F81F8 UsbMouse
-000FB018 UsbKeyboard
-
-
-*)

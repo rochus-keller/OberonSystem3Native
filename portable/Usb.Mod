@@ -111,7 +111,7 @@ UsbController* = POINTER TO RECORD
 
   (* Internal data *)
 
-  RootHub : UsbDevice;
+  RootHub* : UsbDevice;
   AdrRange : ARRAY 128 OF BOOLEAN;
   ActiveState : BOOLEAN;
   next : UsbController;
@@ -726,6 +726,7 @@ BEGIN
   IF SYSTEM.VAL(SET, ORD(Buffer[0])) * {1} # {} THEN status := status + PortStatusEnabled; END;
   IF SYSTEM.VAL(SET, ORD(Buffer[0])) * {4} # {} THEN status := status + PortStatusReset; END;  
   IF SYSTEM.VAL(SET, ORD(Buffer[1])) * {1} # {} THEN status := status + PortStatusLowSpeed; END;
+  IF SYSTEM.VAL(SET, ORD(Buffer[1])) * {2} # {} THEN status := status + PortStatusHighSpeed; END;
 
  END;
 
@@ -1288,6 +1289,8 @@ BEGIN
  dev.Address := 0; (* default address *)
  dev.LowSpeed := FALSE;
  dev.HighSpeed := FALSE;
+ dev.Parent := hub; 
+ dev.Port := port;  
 
  status := OpGetPortStatus(hub, port);
 
