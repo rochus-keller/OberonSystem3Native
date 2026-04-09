@@ -31,9 +31,15 @@ Here is a screenshot of the IDE and the running system.
 
 - Assembler code was removed from all portable modules (replaced by regular Oberon or `SYSTEM` calls).
 - Modules dependent on hardware-specific `SYSTEM` calls have been moved to the i386 (and arm32) directories.
-- **ARMv7 Architecture Support:** The inner and outer core of the Oberon system (Kernel, Reals, SD card access) including supporting platform-specific files (display and USB driver, Math, etc.) have successfully been migrated to ARMv7. The full system now natively boots and works as expected on QEMU 10.2 emulating the `raspi2b` machine.
+- ARMv7 Architecture Support: The system has successfully been migrated to ARMv7. The full system natively boots and works as expected on QEMU 10.2 emulating the `raspi2b` machine, as well as **the physical Raspberry Pi Model 3b** (see below). Note that this is still work-in-progress, system crashes are to be expected until further notice.
 
 ![Oberon System on QEMU ARMv7](http://software.rochus-keller.ch/FullSystemArm_2026-04-01_20-14-38.png)
+
+### Status on 2026-04-10
+
+Finally it works on the Raspberry Pi 3b! See the screenshot below. Basically after three total redesigns of the USB driver. There were also some issues in Usb.Mod which made the hub throwing a stall, and a lot more issues in the bit and timing fiddling of the driver. When the mouse and key events eventually got through, a lot of timing optimizations were necessary. Relying on the standard OS tick was too coarse for USB 2.0 Hub microframes. The driver now bypasses the OS timer and directly reads the BCM2837's 1MHz hardware timer to execute exact 125µs and 20µs micro-waits during active transactions. To keep the OS running smoothly, macro-timing is now handled asynchronously. When a device responds with a NAK, the driver records the target nextPoll time and immediately yields back to the OS. However, the actual micro-sequence of fetching data from the Hub is executed synchronously to guarantee atomic completion. By default, the Oberon USB stack kills a device if an interrupt poll returns an error. The driver now safely absorbs these transient hardware errors, seamlessly resetting the pacing timer and trying again on the next polling cycle, preventing the keyboard or mouse from suddenly "dying" during fast typing. I was also able to add support for the trackpoint integrated with my Lenovo keyboard which required a (portable) change to UsbMouse.Mod. Some additional modifications assured compatibility with the old 128 MB SD cards or which I still have many on stock and which are very well suited for the Oberon system ;-) I also found that forcing the driver to 16 bit color makes the system feel much more fluid on the raspi than the default 32 bits. Finally, I made tests on the rpi zero 2; according to the log the system works, but I had issues with the hdmi mini adapter. I will follow-up on this later.
+
+![Oberon System on Raspi 3b](http://software.rochus-keller.ch/OberonSystem3_on_Raspi3.jpg)
 
 ### Status on 2026-04-06
 
@@ -55,11 +61,11 @@ The scripts required to build the system, statically link the inner core modules
 assumed to run the scripts. Precompiled versions of the toolchain and the resulting system image are made available.
 The `build_all.sh` script depends on a `Modules.txt` file, the contents of which is generated using the "Show dependency order" dialog of the mentioned IDE. 
 
-For the ARM version of the system see the `arm32/build` directory. 
+For the ARM version of the system see the `arm32/build` directory. There is also a tool running on Linux to flash an SD card for the Raspi.
 
 ### Roadmap
 
-- Work in progress: debug and run the ARMv7 system directly on real hardware via JTAG, targeting the Raspberry Pi Model 2b, Model 3b, and Zero 2.
+- Work in progress: debug and run the ARMv7 system on Raspberry Pi Zero 2.
 - Migrate network driver and test adapter
 - Future: migrate the system to the RISC-V based ESP32-P4 architecture, particularly targeting the [new Olimex board](https://www.olimex.com/Products/IoT/ESP32-P4/ESP32-P4-PC/open-source-hardware).
 

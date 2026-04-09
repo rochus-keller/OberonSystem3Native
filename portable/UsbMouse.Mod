@@ -24,6 +24,7 @@ TYPE
   Device : Usb.UsbDevice;
   Req : Usb.UsbTReq;
   Message : ARRAY 64 OF CHAR;
+  isTrackpoint : BOOLEAN;
   next : Mouse;
  END;
 
@@ -47,14 +48,27 @@ BEGIN
    Usb.OpProbeTrans(act.Req); (* poll it *)
    IF (act.Req.Status * Usb.ResInProgress) = {} THEN
     IF (act.Req.Status * (Usb.ResOK + Usb.ResShortPacket) # {}) & (act.Req.BufferLen >= 3) THEN
-     dx := dx + SYSTEM.VAL(SHORTINT, act.Message[1]);
-     dy := dy + SYSTEM.VAL(SHORTINT, act.Message[2]);
-     dz := dz + SYSTEM.VAL(SHORTINT, act.Message[3]);
-     IF (SYSTEM.VAL(SET, act.Message[0]) * {0}) # {} THEN INCL(keys, 2); END;
-     IF (SYSTEM.VAL(SET, act.Message[0]) * {1}) # {} THEN INCL(keys, 0); END;
-     IF (SYSTEM.VAL(SET, act.Message[0]) * {2}) # {} THEN INCL(keys, 1); END;
+     IF act.isTrackpoint THEN
+      (* Lenovo TrackPoint uses Report Protocol. Byte 0 is Report ID. *)
+      IF act.Message[0] = CHR(1) THEN (* Report ID 1 is the TrackPoint *)
+       dx := dx + SYSTEM.VAL(SHORTINT, act.Message[2]);
+       dy := dy + SYSTEM.VAL(SHORTINT, act.Message[3]);
+       IF (SYSTEM.VAL(SET, act.Message[1]) * {0}) # {} THEN INCL(keys, 2); END;
+       IF (SYSTEM.VAL(SET, act.Message[1]) * {1}) # {} THEN INCL(keys, 0); END;
+       IF (SYSTEM.VAL(SET, act.Message[1]) * {2}) # {} THEN INCL(keys, 1); END;
+       ActionFlag := TRUE;
+      END;
+     ELSE
+      (* Standard Boot Protocol Mouse *)
+      dx := dx + SYSTEM.VAL(SHORTINT, act.Message[1]);
+      dy := dy + SYSTEM.VAL(SHORTINT, act.Message[2]);
+      dz := dz + SYSTEM.VAL(SHORTINT, act.Message[3]);
+      IF (SYSTEM.VAL(SET, act.Message[0]) * {0}) # {} THEN INCL(keys, 2); END;
+      IF (SYSTEM.VAL(SET, act.Message[0]) * {1}) # {} THEN INCL(keys, 0); END;
+      IF (SYSTEM.VAL(SET, act.Message[0]) * {2}) # {} THEN INCL(keys, 1); END;
+      ActionFlag := TRUE;
+     END;
      Usb.OpRestartInterrupt(act.Req);
-     ActionFlag := TRUE;
     ELSE     
      Kernel.WriteString("Usb Mouse error. Disabling mouse polling for this mouse."); Kernel.WriteLn;
      Usb.OpDeleteTrans(act.Req); act.Req := NIL;
@@ -74,14 +88,20 @@ VAR
  if : Usb.UsbDeviceInterface;
  m : Mouse;
  req : Usb.UsbTReq;
+ isTrackpoint : BOOLEAN;
 BEGIN
  
  if := dev.ActConfiguration.Interfaces[intfc];
   
  IF if.bInterfaceClass # 3 THEN RETURN END;
- IF if.bInterfaceSubClass # 1 THEN RETURN END;
- IF if.bInterfaceProtocol # 2 THEN RETURN END;
  IF if.bNumEndpoints # 1 THEN RETURN END;
+
+ isTrackpoint := (dev.Descriptor.idVendor = 17EFH) & (dev.Descriptor.idProduct = 6009H) & (if.bInterfaceNumber = 1);
+
+ (* Check if it is a Standard Boot Mouse OR the Lenovo TrackPoint *)
+ IF ~((if.bInterfaceSubClass = 1) & (if.bInterfaceProtocol = 2)) & ~isTrackpoint THEN
+  RETURN
+ END;
 
  Kernel.WriteString("Usb Mouse found."); Kernel.WriteLn;
 
@@ -92,6 +112,7 @@ BEGIN
 
  m.Device := dev;
  m.Req := req;
+ m.isTrackpoint := isTrackpoint;
  m.next := MouseList;
 
  (* Start the interrupt transaction *)

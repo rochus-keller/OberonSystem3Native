@@ -46,9 +46,10 @@ CONST
   TagSetPixOrd  = 48006H;   (* Set pixel order (0=BGR, 1=RGB) *)
   TagAllocBuf   = 40001H;   (* Allocate framebuffer *)
   TagGetPitch   = 40008H;   (* Get pitch (bytes per line) *)
+  TagSetAlphaMode = 48007H; (* Set alpha mode *)
   TagEnd        = 0;
 
-  BufWords = 36;  (* number of 32-bit words in our mailbox message buffer *)
+  BufWords = 40;  (* number of 32-bit words in our mailbox message buffer *)
   QBufWords = 12; (* number of 32-bit words in the query message buffer *)
 
 TYPE
@@ -299,6 +300,12 @@ BEGIN
   PutWord(mbuf + i, 0); INC(i, 4);
   PutWord(mbuf + i, 0); INC(i, 4);
 
+  (* Tag: Set Alpha Mode = 2 (Ignore alpha channel) *)
+  PutWord(mbuf + i, TagSetAlphaMode); INC(i, 4);
+  PutWord(mbuf + i, 4); INC(i, 4);
+  PutWord(mbuf + i, 0); INC(i, 4);
+  PutWord(mbuf + i, 2); INC(i, 4);
+  
   (* End tag *)
   PutWord(mbuf + i, TagEnd); INC(i, 4);
 
@@ -359,7 +366,8 @@ BEGIN
       Kernel.WriteString(Header); Kernel.WriteString("detected ");
       Kernel.WriteInt(w, 0); Kernel.WriteChar("x");
       Kernel.WriteInt(h, 0); Kernel.WriteChar("x");
-      Kernel.WriteInt(d, 0); Kernel.WriteLn
+      Kernel.WriteInt(d, 0); Kernel.WriteLn;
+      d := 16; (* Force 16-bit for much faster rendering *)
     ELSE
       Kernel.WriteString(Header); Kernel.WriteString("auto-detect failed, using defaults"); Kernel.WriteLn;
       w := 1024; h := 768; d := 16

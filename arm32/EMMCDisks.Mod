@@ -453,7 +453,10 @@ BEGIN
   END;
 
   (* Assume base clock is 100 MHz (typical for QEMU and RPi) *)
-  baseClock := 100000000;
+  (* baseClock := 100000000; works on rpi3b, fails on zero2 *)
+  (* Set to half of the Pi 3/Zero2 actual 400MHz core_freq *)
+  (* This perfectly aligns the driver's math with the hardware's 2*N divider *)
+  baseClock := 200000000;
 
   (* Set clock to 400 kHz identification frequency *)
   control1 := ReadReg(oCONTROL1);
@@ -549,10 +552,6 @@ BEGIN
     Kernel.WriteString(Header); Kernel.WriteString("SDSC card detected"); Kernel.WriteLn
   END;
 
-  (* Switch clock to 25 MHz normal mode *)
-  ok := SwitchClockRate(baseClock, 25000000);
-  Delay(5000);
-
   (* CMD2: ALL_SEND_CID *)
   IssueCommand(d, 2, 0);
   IF ~d.lastSuccess THEN
@@ -569,6 +568,10 @@ BEGIN
   cmd3Resp := d.lastR0;
   d.cardRCA := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, ASH(cmd3Resp, -16)) * SYSTEM.VAL(SET, 0FFFFH));
   d.cardRCA := ASH(d.cardRCA, 16);  (* store RCA in upper 16 bits for CMD7/CMD13 *)
+
+  (* Switch clock to 25 MHz normal mode; do this here so it also works with older SD cards *)
+  ok := SwitchClockRate(baseClock, 25000000);
+  Delay(5000);
 
   (* CMD7: SELECT_CARD *)
   IssueCommand(d, 7, d.cardRCA);

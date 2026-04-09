@@ -766,49 +766,59 @@ BEGIN
 
 END OpPowerPort;
 
-PROCEDURE OpEnablePort(hub : UsbDevice; port : INTEGER):BOOLEAN;
-VAR
- res : SET;
- Message : ARRAY 8 OF CHAR;
- status : SET;
+(* HUB FEATURE CLEAR HELPER *)
+PROCEDURE OpClearPortFeature(hub : UsbDevice; port, feature : INTEGER) : BOOLEAN;
+VAR res : SET; Message : ARRAY 8 OF CHAR; 
 BEGIN
+ Message[0] := CHR(32+3); Message[1] := CHR(CommandClearFeature); Message[2] := CHR(feature); Message[3] := CHR(0);
+ Message[4] := CHR(port + 1); Message[5] := CHR(0); Message[6] := CHR(0); Message[7] := CHR(0);
+ res := OpSendControl(ConnectReq, hub, 0, Message, Message, 0, 0, 2000); RETURN res = ResOK;
+END OpClearPortFeature;
 
+PROCEDURE OpEnablePort(hub : UsbDevice; port : INTEGER):BOOLEAN;
+VAR res : SET; Message : ARRAY 8 OF CHAR; status : SET; t: INTEGER; res2: BOOLEAN;
+BEGIN
  IF ~ hub.HubFlag THEN HALT(303); END; 
-
- IF hub.Parent = hub THEN
-  hub.Controller.OpEnablePort(hub.Controller, port);
-  RETURN TRUE;
+ IF hub.Parent = hub THEN hub.Controller.OpEnablePort(hub.Controller, port); RETURN TRUE; END;
+ 
+ (* Send PORT_RESET *)
+ Message[0] := CHR(32+3); Message[1] := CHR(CommandSetFeature); Message[2] := CHR(4); Message[3] := CHR(0);
+ Message[4] := CHR(port + 1); Message[5] := CHR(0); Message[6] := CHR(0); Message[7] := CHR(0);
+ res := OpSendControl(ConnectReq, hub, 0, Message, Message, 0, 0, 2000);
+ IF res # ResOK THEN Kernel.WriteString("Usb: could not reset hub port"); Kernel.WriteLn; RETURN FALSE; END;
+ 
+ (* Wait for the Hub to physically complete the reset *)
+ t := 0;
+ LOOP
+   MilliWait(50);
+   status := OpGetPortStatus(hub, port);
+   IF (status * PortStatusReset) = {} THEN EXIT; END;
+   INC(t, 50);
+   IF t >= 500 THEN
+     Kernel.WriteString("Usb: Port still in reset after 500ms"); Kernel.WriteLn; 
+     RETURN FALSE; 
+   END;
  END;
 
- Message[0] := CHR(32+3);
- Message[1] := CHR(CommandSetFeature);
- Message[2] := CHR(4); (* Reset port *)
- Message[3] := CHR(0);
- Message[4] := CHR(port + 1);
- Message[5] := CHR(0);
- Message[6] := CHR(0);
- Message[7] := CHR(0);
+ (* USB 2.0 Spec MANDATES a 10ms Reset Recovery Interval before traffic. We wait 50ms to be safe. *)
+ MilliWait(50);
 
- res := OpSendControl(ConnectReq, hub, 0, Message, Message, 0, 0, 2000);
+ (* Safely clear ALL change features so the Hub TT is fully unlocked *)
+ res2 := OpClearPortFeature(hub, port, 16); (* C_PORT_CONNECTION *)
+ res2 := OpClearPortFeature(hub, port, 17); (* C_PORT_ENABLE *)
+ res2 := OpClearPortFeature(hub, port, 18); (* C_PORT_SUSPEND *)
+ res2 := OpClearPortFeature(hub, port, 19); (* C_PORT_OVER_CURRENT *)
+ res2 := OpClearPortFeature(hub, port, 20); (* C_PORT_RESET *)
 
- IF res # ResOK THEN Kernel.WriteString("Usb: could not enable hub port"); Kernel.WriteLn; RETURN FALSE; END;
-
+ (* Give the TT state machine time to digest the cleared features *)
  MilliWait(50);
 
  status := OpGetPortStatus(hub, port);
-
- IF (status * PortStatusError) # {} THEN
-  Kernel.WriteString("Usb: Fatal cannot get port status after enabling."); Kernel.WriteLn;
- ELSIF (status * PortStatusReset) # {} THEN
-  MilliWait(50);
-  Kernel.WriteString("Usb: Port still in reset (after 50ms!)"); Kernel.WriteLn;
- ELSIF (status * PortStatusEnabled) = {} THEN
-  Kernel.WriteString("Usb: Could not enable hub port"); Kernel.WriteLn;
-  RETURN FALSE;
+ IF (status * PortStatusEnabled) = {} THEN 
+   Kernel.WriteString("Usb: Could not enable hub port"); Kernel.WriteLn; 
+   RETURN FALSE; 
  END;
-
  RETURN TRUE;
-
 END OpEnablePort;
 
 PROCEDURE OpDisablePort(hub : UsbDevice; port : INTEGER):BOOLEAN;
@@ -842,7 +852,6 @@ BEGIN
  END;
 
 END OpDisablePort;
-
 
 (* ========================================================================= *)
 (*             The topology has changed - look for new devices/hangup not connected ports         *)

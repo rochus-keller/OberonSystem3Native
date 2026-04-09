@@ -21,7 +21,7 @@ if [ ! -d "$TARGET_DIR" ]; then
     exit 1
 fi
 
-../toolchain/aosfstool new "$IMAGE_NAME" 32
+../toolchain/aosfstool new "$IMAGE_NAME" 63
 qemu-img resize "$IMAGE_NAME" 64M
 
 # Use nullglob to prevent the loop from running if no files are found
