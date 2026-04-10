@@ -191,10 +191,13 @@ VAR
   l1TableBuf: ARRAY L1TableSize + 4096 OF LONGINT;  (* 16KB table + 16KB padding for alignment *)
   l1TableBase: ADDRESS;  (* 16KB-aligned base within l1TableBuf *)
 
-  (* Timer *)
-  irqStack: ARRAY 64 OF LONGINT;  (* 256 bytes for IRQ mode stack *)
-  abtStack, undStack: ARRAY 64 OF LONGINT; (* Stacks for Traps *)
-  irqStub: ARRAY 14 OF LONGINT;  (* IRQ handler machine code + data *)
+  (* Timer & Traps *)
+  irqStack: ARRAY 64 OF LONGINT;    (* 256 bytes for IRQ mode stack *)
+  trapStack: ARRAY 4096 OF LONGINT; (* 16KB unified stack for Traps *)
+  trapStackTop: LONGINT;
+  irqStub: ARRAY 14 OF LONGINT;
+  trapStubs: ARRAY 6, 20 OF LONGINT; (* Expanded: 20 words per stub *)
+  trapSPSR: LONGINT;                 (* Stores the exact faulting status *)
   timerPeriod: LONGINT;  (* CNTFRQ / TimeUnit = counter ticks per timer tick *)
 
   (* Clock *)
@@ -255,6 +258,12 @@ PROCEDURE -GetCPSR(): SET;
 CODE {SYSTEM.arm}
   DCW 00000H, 0E10FH
 END GetCPSR;
+
+(* Return saved program status register (the faulting CPSR). *)
+PROCEDURE -GetSPSR(): LONGINT;
+CODE {SYSTEM.arm}
+  DCD 0E14F0000H  (* MRS R0, SPSR *)
+END GetSPSR;
 
 (* Set the Vector Base Address Register (CP15 c12).
   Inline arg on stack: adr at [SP]. *)
@@ -1199,8 +1208,8 @@ BEGIN
     WriteString(" FP=");  WriteHex(fp, 9);
     WriteString(" SP=");  WriteHex(GetSP(), 9);
     WriteString(" FAR=");  WriteHex(pf, 9);  WriteLn;
-    cpsr := GetCPSR();
-    WriteString(" CPSR=");  WriteHex(SYSTEM.VAL(LONGINT, cpsr), 9);
+    cpsr := SYSTEM.VAL(SET, trapSPSR);
+    WriteString(" SPSR=");  WriteHex(SYSTEM.VAL(LONGINT, cpsr), 9);
     WriteString(" TCK=");  WriteInt(ticks, 1);  WriteLn;
     (* Stack backtrace via R11 frame chain *)
     x := 0;
@@ -1280,70 +1289,84 @@ BEGIN
   SYSTEM.STI()
 END RemoveIP;
 
-(* Called from ARM exception vector stubs.
-  excNo = ARM exception index (0..7).
-  lr    = link register value saved by the stub (points near faulting PC).
-  This procedure dispatches to the appropriate Oberon handler. *)
-PROCEDURE DispatchException(excNo, lr: LONGINT);
-VAR err, pc, fp, pf: LONGINT;
+(* Restarts the main loop after a trap, unwinding the stacks. *)
+PROCEDURE -RestartLoop(sp, ip: LONGINT);
+CODE {SYSTEM.arm}
+  DCD 0E59D0004H       (* LDR R0, [SP, #4]  ; R0 = sp (StackOrg) *)
+  DCD 0E59D1000H       (* LDR R1, [SP, #0]  ; R1 = ip (loop) *)
+  
+  DCD 0E10F2000H       (* MRS R2, CPSR *)
+  DCD 0E3C220C0H       (* BIC R2, R2, #0xC0 ; Ensure IRQ & FIQ are enabled *)
+  DCD 0E121F002H       (* MSR CPSR_c, R2 *)
+  
+  DCD 0E1A0D000H       (* MOV SP, R0        ; Reset SVC stack pointer to StackOrg *)
+  DCD 0E3CDD007H       (* BIC SP, SP, #7    ; Force 8-byte stack alignment (AAPCS) *)
+  DCD 0E3A0B000H       (* MOV R11, #0       ; Clear Frame Pointer to end backtraces *)
+  DCD 0E12FFF11H       (* BX R1             ; Jump back to system loop *)
+END RestartLoop;
+
+
+(* Called from the dynamically generated trap stubs.
+   Arrives here in SVC mode, executing securely on the 16KB trapStack. *)
+PROCEDURE DispatchException(excNo, pc, spsr: LONGINT);
+VAR err, fp, pf: LONGINT;
 BEGIN
-  (* Convert ARM exception to error code *)
-  CASE excNo OF
-    ExcUndef:         err := -1;  pc := lr - 4  (* LR_und = faulting instr + 4 *)
-  | ExcSVC:           err := -2;  pc := lr - 4  (* LR_svc = SVC instr + 4 *)
-  | ExcPrefetchAbort: err := -3;  pc := lr - 4  (* LR_abt = faulting instr + 4 *)
-  | ExcDataAbort:     err := -4;  pc := lr - 8  (* LR_abt = faulting instr + 8 *)
-  | ExcIRQ:           err := -6;  pc := lr - 4  (* LR_irq = next instr + 4 *)
-  | ExcFIQ:           err := -7;  pc := lr - 4
-  ELSE                err := -excNo;  pc := lr
-  END;
-  (* Get frame pointer and fault address *)
+  SYSTEM.STI(); (* Re-enable hardware interrupts so Trap UI viewer works *)
+
+  (* Also reset the FPU to clear sticky exception states. 
+     If we don't do this, a math error will cause an infinite TRAP 1 loop. *)
+  SetFPSCR((GetFPSCR() - {0..4, 8..12, 22..24}) + {25});
+
+  trapSPSR := spsr; 
+  err := excNo;
   fp := GetR11();
-  pf := 0;  (* TODO read DFAR/IFAR via MRC for abort exceptions *)
-  (* Call trap handlers *)
+  pf := 0; 
+  
+  (* Step back exactly ONE frame to escape DispatchException and grab the faulting frame *)
+  IF fp # 0 THEN SYSTEM.GET(fp, fp) END;
+
   IF handler0 # NIL THEN handler0(err, fp, pc, pf) END;
   IF handler # NIL THEN handler(err, fp, pc, pf) END;
-  (* If we get here, try to return to the loop procedure *)
+  
   IF (loop # NIL) & ~inGC THEN
-    loop()
+    RestartLoop(StackOrg, SYSTEM.VAL(LONGINT, loop))
   ELSE
     WriteString("Trap in kernel, err=");  WriteInt(err, 1);  WriteLn;
     LOOP END
   END
 END DispatchException;
 
-
-
-PROCEDURE TrapData;
-VAR fp, lr: LONGINT;
+(* Builds a machine-code stub for a specific exception. *)
+PROCEDURE BuildTrapStub(stubIdx, excNo, lrOffset: LONGINT);
+VAR base: LONGINT; proc: PROCEDURE (excNo, pc, spsr: LONGINT);
 BEGIN
-  fp := GetR11();
-  SYSTEM.GET(fp + 4, lr);
-  ShowState(4, fp, lr - 8, 0); (* Data Abort LR is Faulting PC + 8 *)
-  LOOP END
-END TrapData;
-
-PROCEDURE TrapUndef;
-VAR fp, lr: LONGINT;
-BEGIN
-  fp := GetR11();
-  SYSTEM.GET(fp + 4, lr);
-  ShowState(1, fp, lr - 4, 0); (* Undef LR is Faulting PC + 4 *)
-  LOOP END
-END TrapUndef;
-
-PROCEDURE TrapOther;
-VAR fp, lr: LONGINT;
-BEGIN
-  fp := GetR11();
-  SYSTEM.GET(fp + 4, lr);
-  ShowState(99, fp, lr, 0);
-  LOOP END
-END TrapOther;
+  base := SYSTEM.ADR(trapStubs[stubIdx, 0]);
+  SYSTEM.PUT(base + 0,  SYSTEM.VAL(LONGINT, 0E24E1000H) + lrOffset); (* SUB R1, LR, #offset *)
+  SYSTEM.PUT(base + 4,  SYSTEM.VAL(LONGINT, 0E3A00000H) + excNo);    (* MOV R0, #excNo *)
+  SYSTEM.PUT(base + 8,  SYSTEM.VAL(LONGINT, 0E14F3000H));            (* MRS R3, SPSR *)
+  SYSTEM.PUT(base + 12, SYSTEM.VAL(LONGINT, 0E10F2000H));            (* MRS R2, CPSR *)
+  SYSTEM.PUT(base + 16, SYSTEM.VAL(LONGINT, 0E3C2201FH));            (* BIC R2, R2, #0x1F *)
+  SYSTEM.PUT(base + 20, SYSTEM.VAL(LONGINT, 0E3822013H));            (* ORR R2, R2, #0x13 *)
+  SYSTEM.PUT(base + 24, SYSTEM.VAL(LONGINT, 0E121F002H));            (* MSR CPSR_c, R2 *)
+  SYSTEM.PUT(base + 28, SYSTEM.VAL(LONGINT, 0F57FF06FH));            (* ISB SY *)
+  SYSTEM.PUT(base + 32, SYSTEM.VAL(LONGINT, 0E59FD018H));            (* LDR SP, [PC, #24] -> loads word at base+64 *)
+  
+  (* Explicitly push arguments one by one to match Oberon's precise stack parameter order *)
+  SYSTEM.PUT(base + 36, SYSTEM.VAL(LONGINT, 0E52D0004H));            (* STR R0, [SP, #-4]! ; push excNo *)
+  SYSTEM.PUT(base + 40, SYSTEM.VAL(LONGINT, 0E52D1004H));            (* STR R1, [SP, #-4]! ; push pc *)
+  SYSTEM.PUT(base + 44, SYSTEM.VAL(LONGINT, 0E52D3004H));            (* STR R3, [SP, #-4]! ; push spsr *)
+  
+  SYSTEM.PUT(base + 48, SYSTEM.VAL(LONGINT, 0E59F200CH));            (* LDR R2, [PC, #12] -> loads word at base+68 *)
+  SYSTEM.PUT(base + 52, SYSTEM.VAL(LONGINT, 0E12FFF12H));            (* BX R2 *)
+  SYSTEM.PUT(base + 56, SYSTEM.VAL(LONGINT, 0E1A00000H));            (* NOP *)
+  SYSTEM.PUT(base + 60, SYSTEM.VAL(LONGINT, 0E1A00000H));            (* NOP *)
+  SYSTEM.PUT(base + 64, trapStackTop);      
+  proc := DispatchException;                         (* Data: trapStackTop *)
+  SYSTEM.PUT(base + 68, SYSTEM.VAL(LONGINT, proc));     (* Data: DispatchException addr *)
+END BuildTrapStub;
 
 PROCEDURE BuildVectorTable;
 VAR i, ldrPC, base: LONGINT;
-    tUndef, tData, tOther: Proc;
 BEGIN
   base := SYSTEM.ADR(vectorTableBuf[0]);
   base := (base + 31) DIV 32 * 32; 
@@ -1352,41 +1375,23 @@ BEGIN
   
   FOR i := 0 TO NVectors - 1 DO PutWord(base + i * 4, ldrPC) END;
   
-  tUndef := TrapUndef;
-  tData := TrapData;
-  tOther := TrapOther;
+  BuildTrapStub(0, 1, 4); (* Index 0: Undef *)
+  BuildTrapStub(1, 2, 4); (* Index 1: SVC *)
+  BuildTrapStub(2, 3, 4); (* Index 2: Prefetch Abort *)
+  BuildTrapStub(3, 4, 8); (* Index 3: Data Abort *)
+  BuildTrapStub(4, 5, 4); (* Index 4: Reserved *)
+  BuildTrapStub(5, 7, 4); (* Index 5: FIQ *)
   
   PutWord(base + (NVectors + ExcReset) * 4, base); 
-  PutWord(base + (NVectors + ExcUndef) * 4, SYSTEM.VAL(LONGINT, tUndef));
-  PutWord(base + (NVectors + ExcSVC) * 4, SYSTEM.VAL(LONGINT, tOther));
-  PutWord(base + (NVectors + ExcPrefetchAbort) * 4, SYSTEM.VAL(LONGINT, tOther));
-  PutWord(base + (NVectors + ExcDataAbort) * 4, SYSTEM.VAL(LONGINT, tData));
-  PutWord(base + (NVectors + ExcReserved) * 4, SYSTEM.VAL(LONGINT, tOther));
-  PutWord(base + (NVectors + ExcIRQ) * 4, SYSTEM.VAL(LONGINT, tOther));
-  PutWord(base + (NVectors + ExcFIQ) * 4, SYSTEM.VAL(LONGINT, tOther));
+  PutWord(base + (NVectors + ExcUndef) * 4, SYSTEM.ADR(trapStubs[0, 0]));
+  PutWord(base + (NVectors + ExcSVC) * 4, SYSTEM.ADR(trapStubs[1, 0]));
+  PutWord(base + (NVectors + ExcPrefetchAbort) * 4, SYSTEM.ADR(trapStubs[2, 0]));
+  PutWord(base + (NVectors + ExcDataAbort) * 4, SYSTEM.ADR(trapStubs[3, 0]));
+  PutWord(base + (NVectors + ExcReserved) * 4, SYSTEM.ADR(trapStubs[4, 0]));
+  PutWord(base + (NVectors + ExcIRQ) * 4, SYSTEM.ADR(irqStub[0]));
+  PutWord(base + (NVectors + ExcFIQ) * 4, SYSTEM.ADR(trapStubs[5, 0]));
 END BuildVectorTable;
 
-PROCEDURE -SetAbortStack(sp: LONGINT);
-CODE {SYSTEM.arm}
-  LDR R0, [SP, #0]
-  DCW 01000H, 0E10FH   (* MRS R1, CPSR *)
-  DCW 0201FH, 0E3C1H   (* BIC R2, R1, #0x1F *)
-  DCW 02017H, 0E382H   (* ORR R2, R2, #0x17 -> Abort mode *)
-  DCW 0F002H, 0E121H   (* MSR CPSR_c, R2 *)
-  MOV SP, R0           (* Set SP_abt *)
-  DCW 0F001H, 0E121H   (* MSR CPSR_c, R1 (Back to SVC) *)
-END SetAbortStack;
-
-PROCEDURE -SetUndefStack(sp: LONGINT);
-CODE {SYSTEM.arm}
-  LDR R0, [SP, #0]
-  DCW 01000H, 0E10FH   (* MRS R1, CPSR *)
-  DCW 0201FH, 0E3C1H   (* BIC R2, R1, #0x1F *)
-  DCW 0201BH, 0E382H   (* ORR R2, R2, #0x1B -> Undef mode *)
-  DCW 0F002H, 0E121H   (* MSR CPSR_c, R2 *)
-  MOV SP, R0           (* Set SP_und *)
-  DCW 0F001H, 0E121H   (* MSR CPSR_c, R1 (Back to SVC) *)
-END SetUndefStack;
 
 (* Initialize the ARM interrupt/exception vector table
   and install default handlers. *)
@@ -1399,9 +1404,9 @@ BEGIN
     FOR j := 1 TO MaxInts - 1 DO intHandler[i, j] := NIL END
   END;
   
-  (* Give traps a safe stack so they don't double-fault *)
-  SetAbortStack(SYSTEM.ADR(abtStack[63]) + 4);
-  SetUndefStack(SYSTEM.ADR(undStack[63]) + 4);
+  (* We no longer need Abort/Undef stacks because the stubs 
+     immediately switch out of those modes securely *)
+  trapStackTop := SYSTEM.ADR(trapStack[4095]) + 4;
   
   BuildVectorTable;
   SetVBAR(vectorTableBase);

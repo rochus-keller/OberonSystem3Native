@@ -25,7 +25,7 @@ FAT_SIZE_MB="${FAT_SIZE_MB:-16}"
 DRIVE_IMG="${DRIVE_IMG:-../output/drive.img}"
 KERNEL_IMG="${KERNEL_IMG:-../output/image.bin}"
 KERNEL_ADDR="${KERNEL_ADDR:-0x10000}"
-BOOT_FILES="${BOOT_FILES:-/output/bootfiles}"
+BOOT_FILES="${BOOT_FILES:-../output/bootfiles}"
 CMDLINE="${CMDLINE:-cmdline.txt}"
 
 if [ "$(id -u)" -ne 0 ]; then
