@@ -16,4 +16,4 @@ Changes
 - backconverte all files to Latin-1 to be compatible with OP2
 - refactored Kernel to use Multiboot instead of OBL, Host Console for tracing
 - refactored source tree, separated true i386 from portable files
-- migrated full system to Raspberry Pi Model 2b/3b (ARMv7)
+- migrated full system to Raspberry Pi Model 2b/3b/Zero2 (ARMv7)

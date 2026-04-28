@@ -31,13 +31,22 @@ Here is a screenshot of the IDE and the running system.
 
 - Assembler code was removed from all portable modules (replaced by regular Oberon or `SYSTEM` calls).
 - Modules dependent on hardware-specific `SYSTEM` calls have been moved to the i386 (and arm32) directories.
-- ARMv7 Architecture Support: The system has successfully been migrated to ARMv7. The full system natively boots and works as expected on QEMU 10.2 emulating the `raspi2b` machine, as well as **the physical Raspberry Pi Model 3b** (see below). Note that this is still work-in-progress, traps are to be expected until further notice.
+- ARMv7 Architecture Support: The system has successfully been migrated to ARMv7. The full system natively boots and works as expected on QEMU 10.2 emulating the `raspi2b` machine, as well as **the physical Raspberry Pi Model 3b and Zero 2** (see below). 
 
 ![Oberon System on QEMU ARMv7](http://software.rochus-keller.ch/FullSystemArm_2026-04-01_20-14-38.png)
 
+### Status on 2026-04-28
+
+The system now also works on the [Raspberry Pi Zero 2](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)! What initially seemed harmless turned out, once again, to be a weeks-long ordeal. According to the trace log, the keyboard and mouse were detected. But the mouse cursor wouldn’t move. Over time, it became clear that a whole cascade of new problems needed to be resolved. Although the Zero 2 essentially has the same hardware architecture as the 3b, there were several significant differences. Every attempt to fix the USB stack seemed to lead nowhere. After several iterations of diagnostics it finally became clear that there were actually several separate bugs hiding behind the same symptom, each one masking the other.
+
+The first culprit was in UsbDriver.Mod; the Pi Zero 2 W talks to USB devices directly, without the LAN9514 hub that had quietly papered over timing and speed-detection problems on the Pi 3B; important inspiration came from the Linux and Ultibo dwc2 drivers. Once the driver was taught to handle low-speed interrupt endpoints properly and to detect port speed dynamically, valid mouse data finally started flowing; yet the cursor still didn't move. The real villain turned out to be DisplayLinear.Mod. On the Zero 2 W's 512 MB of RAM, the GPU places the framebuffer squarely inside the CPU's cacheable memory region, so every cursor update was dutifully written into cache but never seen by the system. A targeted MMU remap to mark those pages non-cacheable was the solution; and the cursor finally came to life. The keyboard worked as well, and I also added a few additional Lenovo product IDs for the trackpoint. 
+
+Unfortunately these changes seem to impact the performance on QEMU, where keystrokes and mouse clicks seem to vanish in times; I will investigate this, but I think it is more important that it now runs on all targeted boards.
+
+
 ### Status on 2026-04-10
 
-Finally it works on the Raspberry Pi 3b! See the screenshot below. Basically after three total redesigns of the USB driver. There were also some issues in Usb.Mod which made the hub throwing a stall, and a lot more issues in the bit and timing fiddling of the driver. When the mouse and key events eventually got through, a lot of timing optimizations were necessary. Relying on the standard OS tick was too coarse for USB 2.0 Hub microframes. The driver now bypasses the OS timer and directly reads the BCM2837's 1MHz hardware timer to execute exact 125µs and 20µs micro-waits during active transactions. To keep the OS running smoothly, macro-timing is now handled asynchronously. When a device responds with a NAK, the driver records the target nextPoll time and immediately yields back to the OS. However, the actual micro-sequence of fetching data from the Hub is executed synchronously to guarantee atomic completion. By default, the Oberon USB stack kills a device if an interrupt poll returns an error. The driver now safely absorbs these transient hardware errors, seamlessly resetting the pacing timer and trying again on the next polling cycle, preventing the keyboard or mouse from suddenly "dying" during fast typing. 
+Finally it works on the [Raspberry Pi 3b](https://www.raspberrypi.com/products/raspberry-pi-3-model-b/)! See the screenshot below. Basically after three total redesigns of the USB driver. There were also some issues in Usb.Mod which made the hub throwing a stall, and a lot more issues in the bit and timing fiddling of the driver. When the mouse and key events eventually got through, a lot of timing optimizations were necessary. Relying on the standard OS tick was too coarse for USB 2.0 Hub microframes. The driver now bypasses the OS timer and directly reads the BCM2837's 1MHz hardware timer to execute exact 125µs and 20µs micro-waits during active transactions. To keep the OS running smoothly, macro-timing is now handled asynchronously. When a device responds with a NAK, the driver records the target nextPoll time and immediately yields back to the OS. However, the actual micro-sequence of fetching data from the Hub is executed synchronously to guarantee atomic completion. By default, the Oberon USB stack kills a device if an interrupt poll returns an error. The driver now safely absorbs these transient hardware errors, seamlessly resetting the pacing timer and trying again on the next polling cycle, preventing the keyboard or mouse from suddenly "dying" during fast typing. 
 
 I was also able to add support for the trackpoint integrated with my Lenovo keyboard which required a (portable) change to UsbMouse.Mod. Some additional modifications assured compatibility with the old 128 MB SD cards of which I still have many on stock and which are very well suited for the Oberon system ;-) I also found that forcing the driver to 16 bit color makes the system feel much more fluid on the raspi than the default 32 bits. In addition, the kernel now handles traps similarly to the i386 system, i.e. it restores the processor context after an exception, using a dedicated trap stack to prevent stack overflows and UI deadlocks during trap reporting.
 
@@ -69,7 +78,8 @@ For the ARM version of the system see the `arm32/build` directory. There is also
 
 ### Roadmap
 
-- Work in progress: debug and run the ARMv7 system on Raspberry Pi Zero 2.
-- Migrate network driver and test adapter
+- Work in progress: testing applications
+- Check feasibility of migration to Olimex A20-OLinuXino and Beaglebone Black
+- Migrate network driver
 - Future: migrate the system to the RISC-V based ESP32-P4 architecture, particularly targeting the [new Olimex board](https://www.olimex.com/Products/IoT/ESP32-P4/ESP32-P4-PC/open-source-hardware).
 

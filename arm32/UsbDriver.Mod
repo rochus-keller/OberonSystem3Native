@@ -2,7 +2,7 @@ MODULE UsbDriver;
 
 (*
  Native Oberon ARM DWC2 (DesignWare USB 2.0 OTG) host controller support
- for Raspberry Pi 2/3 (BCM2835/BCM2836/BCM2837).
+ for Raspberry Pi 2/3 and Zero 2 (BCM2835/BCM2836/BCM2837).
 
  Replaces UsbUhci.Mod (Intel UHCI) with the Synopsys DesignWare USB 2.0
  OTG controller found on BCM283x SoCs.  Uses memory-mapped registers
@@ -12,6 +12,7 @@ MODULE UsbDriver;
  USPi bare-metal driver by R. Stange https://github.com/rsta2/uspi
  https://github.com/Chadderz121/csud
  https://github.com/torvalds/linux/tree/master/drivers/usb/dwc2
+ https://github.com/ultibohub/Core file dwcotg.pas
 
  (c) 2026 Rochus Keller <mailto:me@rochus-keller.ch>
 
@@ -591,6 +592,14 @@ VAR charVal, tsizVal, base: LONGINT; pktcnt: LONGINT;
 BEGIN
   base := ch * chanStep;
 
+  (* DWC2 workaround: non-HS interrupt transfers use control endpoint type.
+     Both Linux dwc2 and Ultibo do this (Ultibo line 2877).  The hardware
+     has scheduling issues with LS/FS interrupt endpoints; treating them
+     as control transfers avoids odd/even frame problems. *)
+  IF (eptype = eptInterrupt) & ~dev.HighSpeed THEN
+    eptype := eptControl
+  END;
+
   (* Clear all pending interrupts and set interrupt mask *)
   WriteReg(rHCINT0 + base, SYSTEM.VAL(LONGINT, {0..31}));
   WriteReg(rHCINTMSK0 + base, SYSTEM.VAL(LONGINT,
@@ -905,9 +914,16 @@ END PrepareAsyncInterrupt;
 
 
 PROCEDURE UpcallReset(con: Usb.UsbController);
-VAR dummy: BOOLEAN;
+VAR val, spd: LONGINT;
 BEGIN
-  WITH con: Dwc2Controller DO dummy := ResetRootPort() END
+  WITH con: Dwc2Controller DO
+    IF ResetRootPort() THEN
+      val := ReadReg(rHPRT);
+      spd := ASH(val, -prtSpdShift) MOD 4;
+      con.RootHub.HighSpeed := (spd = spdHigh);
+      con.RootHub.LowSpeed := (spd = spdLow)
+    END
+  END
 END UpcallReset;
 
 PROCEDURE UpcallGetPortStatus(con: Usb.UsbController; port: INTEGER): SET;
@@ -931,8 +947,27 @@ BEGIN RETURN 1
 END UpcallGetPortCount;
 
 PROCEDURE UpcallEnablePort(con: Usb.UsbController; port: INTEGER);
-VAR dummy: BOOLEAN;
-BEGIN dummy := ResetRootPort()
+VAR val, spd: LONGINT; i: INTEGER;
+BEGIN
+  WITH con: Dwc2Controller DO
+    (* Halt all channels and flush FIFOs before re-enabling port *)
+    FOR i := 0 TO NumChannels - 1 DO
+      val := ReadReg(rHCCHAR0 + i * chanStep);
+      val := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, val) + {bCharChdis, bCharChen});
+      WriteReg(rHCCHAR0 + i * chanStep, val);
+      MicroWait(2000);
+      WriteReg(rHCINT0 + i * chanStep, SYSTEM.VAL(LONGINT, {0..31}))
+    END;
+    con.chanAllocated := {};
+    FlushTxFIFO(10H); FlushRxFIFO;
+
+    IF ResetRootPort() THEN
+      val := ReadReg(rHPRT);
+      spd := ASH(val, -prtSpdShift) MOD 4;
+      con.RootHub.HighSpeed := (spd = spdHigh);
+      con.RootHub.LowSpeed := (spd = spdLow)
+    END
+  END
 END UpcallEnablePort;
 
 PROCEDURE UpcallDisablePort(con: Usb.UsbController; port: INTEGER);
@@ -1180,8 +1215,9 @@ BEGIN
   FirstController := con;
   Usb.RegisterController(con);
 
-  (* Mark root hub as high-speed (LAN9514 internal hub negotiates at HS) *)
-  con.RootHub.HighSpeed := TRUE;
+  (* Root hub speed is set by UpcallEnablePort after port reset.
+     Do NOT hardcode HighSpeed here; on Pi Zero 2 W there is no internal
+     LAN9514 hub, so the root port may negotiate at FS or LS. *)
   DMB;
   RETURN TRUE
 END InitController;

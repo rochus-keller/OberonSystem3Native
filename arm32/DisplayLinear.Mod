@@ -102,6 +102,28 @@ CODE {SYSTEM.arm}
   DCW 00F3EH, 0EE07H
 END CleanAndInvalidateDCache;
 
+(* Read TTBR0 (Translation Table Base Register 0).
+  MRC p15, 0, R0, c2, c0, 0 = 0xEE120F10 *)
+PROCEDURE -ReadTTBR0(): LONGINT;
+CODE {SYSTEM.arm}
+  DCW 00F10H, 0EE12H
+END ReadTTBR0;
+
+(* Invalidate entire unified TLB.
+  MCR p15, 0, R0, c8, c7, 0 = 0xEE080F17 *)
+PROCEDURE -InvalidateTLB;
+CODE {SYSTEM.arm}
+  MOV R0, #0
+  DCW 00F17H, 0EE08H
+END InvalidateTLB;
+
+(* Instruction Synchronization Barrier.
+  ISB SY = 0xF57FF06F *)
+PROCEDURE -ISB;
+CODE {SYSTEM.arm}
+  DCW 0F06FH, 0F57FH
+END ISB;
+
 (* Flush data cache range to ensure ARM/GPU memory coherence *)
 PROCEDURE FlushDCache(adr, size: LONGINT);
 VAR end: LONGINT;
@@ -353,6 +375,29 @@ PROCEDURE GetStr(name: ARRAY OF CHAR; VAR s: ARRAY OF CHAR);
 BEGIN Kernel.GetConfig(name, s)
 END GetStr;
 
+(* Remap framebuffer memory as non-cacheable so the VideoCore GPU sees CPU writes.
+   On Pi Zero 2W (512MB) the FB at ~0x1E7xxxxx falls inside the cached region
+   of the L1 table (0x000-0x3BF = cacheable).  On Pi 3B the FB is at ~0x3Cxxxxxx
+   which is already non-cacheable, so we skip the remap entirely.
+   Self-contained: no Kernel.Mod changes needed. *)
+PROCEDURE RemapFBNonCacheable(fbAdr, fbSize: LONGINT);
+CONST NCEntry = 11C02H;  (* L1EntrySection+SectAP+SectNormalNC+SectShareable *)
+VAR l1Base, i, first, last: LONGINT;
+BEGIN
+  IF fbAdr < 3C000000H THEN
+    l1Base := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, ReadTTBR0()) * {14..31});
+    first := fbAdr DIV 100000H;
+    last := (fbAdr + fbSize - 1) DIV 100000H;
+    FOR i := first TO last DO
+      PutWord(l1Base + i * 4, i * 100000H + NCEntry)
+    END;
+    FlushDCache(l1Base + first * 4, (last - first + 1) * 4);
+    InvalidateTLB;
+    DSB;
+    ISB
+  END
+END RemapFBNonCacheable;
+
 PROCEDURE Init;
 VAR w, h, d, f, mem, adr, size, pitch: LONGINT;
   mode: ARRAY 12 OF CHAR; autoDetect: BOOLEAN;
@@ -414,8 +459,7 @@ BEGIN
     IF display.offscreen < 0 THEN display.offscreen := 0 END;
     display.format := f; display.unit := 10000;
 
-    (* Force an uncached MMU mapping *)
-    Kernel.MapPhysical(adr, mem + (-mem) MOD 4096, adr);
+    RemapFBNonCacheable(adr, size);
 
     display.InitFrameBuffer(adr, mem);
     Kernel.WriteString(Header); Kernel.WriteString("initialized OK"); Kernel.WriteLn

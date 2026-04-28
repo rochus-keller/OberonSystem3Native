@@ -96,7 +96,10 @@ BEGIN
  IF if.bInterfaceClass # 3 THEN RETURN END;
  IF if.bNumEndpoints # 1 THEN RETURN END;
 
- isTrackpoint := (dev.Descriptor.idVendor = 17EFH) & (dev.Descriptor.idProduct = 6009H) & (if.bInterfaceNumber = 1);
+ isTrackpoint := (dev.Descriptor.idVendor = 17EFH) & 
+   ((dev.Descriptor.idProduct = 6009H) OR (dev.Descriptor.idProduct = 6047H) OR
+    (dev.Descriptor.idProduct = 60EEH) OR (dev.Descriptor.idProduct = 60E1H)) & 
+   (if.bInterfaceNumber = 1);
 
  (* Check if it is a Standard Boot Mouse OR the Lenovo TrackPoint *)
  IF ~((if.bInterfaceSubClass = 1) & (if.bInterfaceProtocol = 2)) & ~isTrackpoint THEN
