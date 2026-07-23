@@ -8,11 +8,11 @@ Refer to the license.txt file provided with this distribution. *)
 (*
  References:
  1. N. Wirth Oberon Language Report
- 2. Wirth/Mössenböck, Oberon-2 Langauge Report
+ 2. Wirth/Mï¿½ssenbï¿½ck, Oberon-2 Langauge Report
 *)
 
 MODULE OPB; (** non-portable *)
- IMPORT SYSTEM, OPT, OPS, OPM;
+ IMPORT SYSTEM, OPT, OPS, OPM, OPTR;
 
  CONST
   AwaitIF* = TRUE;
@@ -804,7 +804,7 @@ MODULE OPB; (** non-portable *)
  BEGIN f := x^.typ^.form; g := typ^.form;
   IF x^.class = Nconst THEN
    IF f IN intSet THEN
-    IF g IN intSet THEN
+    IF (g IN intSet) OR (g = HInt) THEN
      IF f > g THEN SetIntType(x);
       IF x^.typ^.form > g THEN err(203); x^.conval^.intval := 1 END
      END
@@ -1108,8 +1108,10 @@ MODULE OPB; (** non-portable *)
     Undef, String:
   | Byte:
     IF ~(g IN {Byte, Char, SInt}) THEN err(113) END
-  | Bool, Char, SInt, Set, HInt:
+  | Bool, Char, SInt, Set:
     IF g # f THEN err(113) END
+  | HInt:
+    IF (g # f) & ~((ynode^.class = Nconst) & (g IN intSet)) THEN err(113) END
   | Int:
     IF ~(g IN {SInt, Int}) THEN err(113) END
   | LInt:
@@ -1161,7 +1163,7 @@ MODULE OPB; (** non-portable *)
     ELSE (*DynArr*) err(113)
     END
   END ;
-  IF (ynode^.class = Nconst) & (g < f) & (g IN {SInt..Real}) & (f IN {Int..LReal}) THEN
+  IF (ynode^.class = Nconst) & (g < f) & (g IN {SInt..Real}) & (f IN {Int..LReal, HInt}) THEN
    Convert(ynode, x)
   END
  END CheckAssign;
@@ -1377,7 +1379,7 @@ MODULE OPB; (** non-portable *)
      IF fctno = putrfn THEN err(-666) END
     END;
     IF (f IN intSet) & (x^.class = Nconst) THEN
-     IF (x^.conval^.intval < OPM.MinRegNr) OR (x^.conval^.intval > OPM.MaxRegNr) THEN err(220) END
+     IF (x^.conval^.intval < OPTR.MinRegNr) OR (x^.conval^.intval > OPTR.MaxRegNr) THEN err(220) END
     ELSE err(69)
     END
   | valfn: (*SYSTEM.VAL*)
@@ -1548,17 +1550,14 @@ MODULE OPB; (** non-portable *)
     END ;
     p^.typ := OPT.notyp
   | getrfn, putrfn: (*SYSTEM.GETREG, SYSTEM.PUTREG*)
-    IF p.conval # NIL THEN i := p.conval.intval;  p.conval.intval := i MOD 8  END;
+    IF p.conval # NIL THEN i := p.conval.intval;  p.conval.intval := OPTR.RegIndex(i)  END;
     IF (x^.class = Ntype) OR (x^.class = Nproc) THEN err(126)
-    ELSIF (0<=i) & (i < 8) & ~(f IN {Undef..Real, Set, NilTyp, Pointer, ProcTyp}) THEN err(111)  (*old definition*)
-    ELSIF (8<=i) & (i < 16) & ~(f IN {LInt, Real, Set, Pointer, ProcTyp}) THEN err(111)  (*EAX .. EDI*)
-    ELSIF (16<=i) & (i < 24) & ~(f IN {Int}) THEN err(111)  (*AX .. DI*)
-    ELSIF (24<=i) & (i < 32) & ~(f IN {Byte, Bool, Char, SInt}) THEN err(111)  (*AL .. BH*)
+    ELSIF ~OPTR.ValidRegType(i, SHORT(f)) THEN err(111)
     ELSE
      IF fctno = getrfn THEN
       IF NotVar(x) THEN err(112) END ;
       t := x; x := p; p := t
-     ELSIF (0<=i) & (i < 8) & (x.class = Nconst) THEN err(-306)
+     ELSIF OPTR.IsLegacyReg(i) & (x.class = Nconst) THEN err(-306)
      END ;
      p := NewOp(Nassign, fctno, p, x)
     END ;

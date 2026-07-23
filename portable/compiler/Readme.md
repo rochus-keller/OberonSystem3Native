@@ -3,4 +3,4 @@ to this repository for convenience only
 
 commit 2aa7caf July 13, 2026
 
-arm32 modules only
+portable modules only

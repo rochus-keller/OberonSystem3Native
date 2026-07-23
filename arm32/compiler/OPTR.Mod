@@ -23,6 +23,8 @@
 
 MODULE OPTR; (** non-portable *)
 
+ IMPORT OPM;
+ 
  CONST
   (* Structure forms - needed for ValidRegType *)
   Undef = 0; Byte = 1; Bool = 2; Char = 3; SInt = 4; Int = 5; LInt = 6;
@@ -33,7 +35,7 @@ MODULE OPTR; (** non-portable *)
   EnterConstProc* = PROCEDURE(name: ARRAY OF CHAR; value: LONGINT);
 
  VAR
-  Target* : ARRAY 8 OF CHAR;
+  Target* : SHORTINT;
   MinRegNr*: LONGINT;
   MaxRegNr*: LONGINT;
 
@@ -73,7 +75,7 @@ MODULE OPTR; (** non-portable *)
  END EnterRegisters;
 
 BEGIN
- Target := "ARMv7";
+ Target := OPM.arm32;
  MinRegNr := 0;
  MaxRegNr := 14
 END OPTR.

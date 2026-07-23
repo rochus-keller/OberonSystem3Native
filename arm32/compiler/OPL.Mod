@@ -351,7 +351,7 @@ MODULE OPL; (** non-portable *)
   noVarEntries := 0; nofptrs := 0; nofVarConsLinks := 0;
   nofrecs := 0; nofEntries := 0; nofSavedLevel := 0;
   lastFstoreFreg := -1; currentProcRetForm := 0; spSubPending := FALSE;
-  OPO.csize := 4; (* module.SELF *)
+  IF OPM.aosFlag THEN OPO.csize := 0 ELSE OPO.csize := 4 END; (* module.SELF: 4 bytes for System 3, 0 for AOS *)
   varConsLink[0].noflinks := 0; varConsLink[0].entry := -1;
   varConsLink[0].noflinks := 0; varConsLink[0].index := noEntry;
   nofVarCons := 1;
@@ -1092,7 +1092,7 @@ MODULE OPL; (** non-portable *)
     memBase := IP
    END;
    IF instr.op DIV 32 = GETreg THEN
-    (* CRITICAL FIX: Translate system register hints to real hardware SP/FP *)
+    (* Translate system register hints to real hardware SP/FP *)
     IF size = Bit8 THEN OPO.GenSTRB(CondAL, MapSysReg(instr.hint), memBase, disp)
     ELSIF size = Bit16 THEN OPO.GenSTRH(CondAL, MapSysReg(instr.hint), memBase, disp)
     ELSE OPO.GenSTR(CondAL, MapSysReg(instr.hint), memBase, disp) END
@@ -1128,7 +1128,6 @@ MODULE OPL; (** non-portable *)
   OPO.GenLDRPost(CondAL, instr.reg, SP, 4)
  END GenPop;
 
-(* ---- Immediate helpers: handle arbitrary 32-bit immediates ---- *)
 (* ARM32 data processing instructions can only encode 8-bit rotated immediates.
    These helpers try the immediate encoding first, and fall back to loading
    the value into IP (R12) scratch register if it doesn't fit. *)
@@ -1276,7 +1275,6 @@ MODULE OPL; (** non-portable *)
   OPO.LoadImm32(cond, Rd, imm)
  END EmitMovImm;
 
-(* ---- Part 3: Integer Arithmetic ---- *)
 
  PROCEDURE Gen2(VAR instr: Instruction);
  (* neg, not *)

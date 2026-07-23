@@ -21,7 +21,15 @@ done < "$MODULES_FILE"
   Kernel Disks SDDisks OFS OFSCacheVolumes Files Modules \
   OFSAosFiles OFSDiskVolumes OFSBoot
 
+../toolchain/multibootlinker --arch rv32 --base 4FF01000 --enable-stack \
+    --stack-size 8192 --autofix \
+    -o ../output/oberon_esp.bin --path . \
+    Kernel Disks OFS Files Modules OFSCacheVolumes SDDisks \
+    OFSAosFiles OFSDiskVolumes OFSBoot
 
+../toolchain/bin2espelf --base 4FF00000 --name OberonSystem \
+    -o ../output/oberon.elf ../output/oberon_esp.bin
+    
 mv *.Obj ../output/drive
 mv image.bin ../output
 

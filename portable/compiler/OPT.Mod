@@ -568,7 +568,13 @@ MODULE OPT; (* non-portable *)
  END CloseScope;
 
  PROCEDURE Init*(VAR name: OPS.Name);
- BEGIN topScope := universe; OpenScope(0, NIL); nofmod := 1; SYSimported := FALSE; impSelf:=FALSE;
+  VAR obj: Object;
+ BEGIN topScope := universe;
+  IF OPM.aosFlag THEN
+   FindInScope("ANY", topScope, obj);
+   IF obj = NIL THEN EnterTypAlias("ANY", ptrtyp) END
+  END;
+  OpenScope(0, NIL); nofmod := 1; SYSimported := FALSE; impSelf:=FALSE;
   sfpresent:=TRUE;
   newSF := (OPM.newsf IN OPM.parserOptions); extSF := newSF OR (OPM.extsf IN OPM.parserOptions);
   modules[0]:=NewMod(); 

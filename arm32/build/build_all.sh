@@ -7,6 +7,7 @@ cp ../../rootfs/* ../output/drive
 cp ../*.Mod ../output/drive
 cp ../compiler/*.Mod ../output/drive
 cp ../../portable/*.Mod ../output/drive
+cp ../../portable/compiler/*.Mod ../output/drive
 
 # Path to the list of modules
 MODULES_FILE="Modules.txt"

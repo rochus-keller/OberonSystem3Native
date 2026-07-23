@@ -35,6 +35,19 @@ Here is a screenshot of the IDE and the running system.
 
 ![Oberon System on QEMU ARMv7](http://software.rochus-keller.ch/FullSystemArm_2026-04-01_20-14-38.png)
 
+### Status on 2026-07-23
+
+Finally I found the time to properly integrate, test and debug my OP2 version into the Oberon System. I made some attempts earlier but found a crash on ARMv7 when 
+running Compiler.Compile. That was pretty misterious since I use the same compiler to build the whole system (but transpiled to C); as it turned out, I forgot to initialize
+a pointer variable in OPP which caused a crash when run on the Oberon System, but not when run as a C program; took some time to trace down, but now it works. I successfully
+tested OP2 on i386 and arm32 QEMU and on the Raspi Zero 2. 
+
+I also fixed an annoyance which was an unwanted side effect of the Zero 2 USB driver overhaul, which made keyboard operation on QEMU (ARM only) unreliable. I fixed this by
+adding a new configuration option "Qemu=1" in which case the original async interrupt handling is restored (which doesn't work on the Raspi, but on QEMU).
+
+With this fixe and the working compiler, the Oberon System can be considered sufficiently complete and I can focus on other things
+(such as transpiling the whole source code to my new Micron language and continue development of the system in this language).
+
 ### Status on 2026-04-28
 
 The system now also works on the [Raspberry Pi Zero 2](https://www.raspberrypi.com/products/raspberry-pi-zero-2-w/)! What initially seemed harmless turned out, once again, to be a weeks-long ordeal. According to the trace log, the keyboard and mouse were detected. But the mouse cursor wouldn’t move. Over time, it became clear that a whole cascade of new problems needed to be resolved. Although the Zero 2 essentially has the same hardware architecture as the 3b, there were several significant differences. Every attempt to fix the USB stack seemed to lead nowhere. After several iterations of diagnostics it finally became clear that there were actually several separate bugs hiding behind the same symptom, each one masking the other.

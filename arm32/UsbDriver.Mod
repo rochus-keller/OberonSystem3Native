@@ -177,6 +177,10 @@ VAR
   FirstController: Dwc2Controller;
   ControllerCount: INTEGER;
 
+  (* When set (via the "Qemu=1" boot config variable), interrupt endpoints
+     use the original fully asynchronous DWC2 handling *)
+  qemuMode: BOOLEAN;
+
   mbufRaw: ARRAY 128 OF CHAR;
   chanBufRaw: ARRAY NumChannels * MaxTransferSize + 64 OF CHAR;
   chanBuf: ARRAY NumChannels OF LONGINT;
@@ -893,6 +897,28 @@ END DoBulkTransfer;
 
 
 
+(* QEMU async path only: (re)arm the host channel of an interrupt IN/OUT
+   endpoint and leave it running.  Programs the channel exactly like a
+   non-split interrupt transaction; the completion is picked up later by the
+   non-blocking status read in UpcallProbeTrans. *)
+PROCEDURE ArmInterruptChannel(req: Usb.UsbTReq; ch: INTEGER);
+VAR dirIn, datatoggle: BOOLEAN; pid, pipesize: INTEGER;
+BEGIN
+  dirIn := SYSTEM.VAL(SET, req.Endpoint) * {7} # {};
+  IF dirIn THEN
+    datatoggle := req.Device.DataToggleIn[req.Endpoint MOD 16];
+    pipesize := req.Device.MaxPacketSizeIn[req.Endpoint MOD 16]
+  ELSE
+    datatoggle := req.Device.DataToggleOut[req.Endpoint MOD 16];
+    pipesize := req.Device.MaxPacketSizeOut[req.Endpoint MOD 16]
+  END;
+  IF pipesize = 0 THEN pipesize := 8 END;
+  IF datatoggle THEN pid := pidData1 ELSE pid := pidData0 END;
+  WriteReg(rHCSPLT0 + ch * chanStep, 0);
+  StartChannel(ch, req.Device, req.Endpoint MOD 16, eptInterrupt,
+    dirIn, pid, req.Buffer, req.BufferLen, pipesize, FALSE, req.Device.LowSpeed)
+END ArmInterruptChannel;
+
 (* Set up an asynchronous interrupt transfer.
    Allocates a channel and schedules the first poll based on IRQInterval. *)
 PROCEDURE PrepareAsyncInterrupt(con: Dwc2Controller; req: Usb.UsbTReq): SET;
@@ -906,8 +932,12 @@ BEGIN
   req.Status := Usb.ResInProgress;
   req.next := con.TReqList; con.TReqList := req;
 
-  (* Schedule first poll *)
-  spec.nextPoll := GetWord(SysTimerCLO) + req.IRQInterval * 1000;
+  IF qemuMode THEN
+    ArmInterruptChannel(req, ch)
+  ELSE
+    (* Schedule first poll *)
+    spec.nextPoll := GetWord(SysTimerCLO) + req.IRQInterval * 1000
+  END;
   RETURN Usb.ResInProgress
 END PrepareAsyncInterrupt;
 
@@ -1004,10 +1034,45 @@ END UpcallSendReq;
 PROCEDURE UpcallProbeTrans(con: Usb.UsbController; req: Usb.UsbTReq);
 VAR spec: Dwc2ConSpec; chint: SET; dirIn, datatoggle, isSplit: BOOLEAN;
     pid, pipesize, csplitPid, ch, nyetCount, hubAddr, hubPort: INTEGER;
-    timeoutUs, ssplitVal, csplitVal: LONGINT;
+    timeoutUs, ssplitVal, csplitVal, intofs: LONGINT;
 BEGIN
   IF req.ConSpec = NIL THEN req.Status := Usb.ResInternal; RETURN END;
   spec := req.ConSpec(Dwc2ConSpec);
+
+  IF qemuMode THEN
+    (* the channel is already running.  Just read its interrupt
+       status register (non-blocking) and act on it. *)
+    intofs := rHCINT0 + spec.chan * chanStep;
+    chint := SYSTEM.VAL(SET, ReadReg(intofs));
+    IF (bHcXfercomp IN chint) OR (bHcStall IN chint)
+       OR (bHcAhberr IN chint) OR (bHcBblerr IN chint) THEN
+      WriteReg(intofs, SYSTEM.VAL(LONGINT, {0..31}));
+      IF bHcXfercomp IN chint THEN
+        req.Status := Usb.ResOK;
+        dirIn := SYSTEM.VAL(SET, req.Endpoint) * {7} # {};
+        IF dirIn THEN
+          IF (req.Buffer # 0) & (req.BufferLen > 0) THEN
+            InvalidateDCache(chanBuf[spec.chan], req.BufferLen);
+            SYSTEM.MOVE(chanBuf[spec.chan], req.Buffer, req.BufferLen)
+          END;
+          req.Device.DataToggleIn[req.Endpoint MOD 16] :=
+            ~req.Device.DataToggleIn[req.Endpoint MOD 16]
+        ELSE
+          req.Device.DataToggleOut[req.Endpoint MOD 16] :=
+            ~req.Device.DataToggleOut[req.Endpoint MOD 16]
+        END
+      ELSE
+        req.Status := Usb.ResCRCTimeout
+      END
+    ELSIF bHcChhltd IN chint THEN
+      (* Halted: on NAK (no data yet) re-arm and stay in progress; any other
+         halt is treated as a transient error and the channel is re-armed. *)
+      WriteReg(intofs, SYSTEM.VAL(LONGINT, {0..31}));
+      ArmInterruptChannel(req, spec.chan)
+    END;
+    (* else: still in progress, leave status unchanged *)
+    RETURN
+  END;
 
   (* Check if it's time to poll yet *)
   IF GetWord(SysTimerCLO) - spec.nextPoll < 0 THEN RETURN END;
@@ -1164,17 +1229,29 @@ BEGIN
   IF (req.Status * Usb.ResInProgress) # {} THEN RETURN END;
 
   spec := req.ConSpec(Dwc2ConSpec);
-  spec.nextPoll := GetWord(SysTimerCLO) + req.IRQInterval * 1000;
-  req.Status := Usb.ResInProgress
+  IF qemuMode THEN
+    (* re-arm the channel immediately *)
+    req.Status := Usb.ResInProgress;
+    ArmInterruptChannel(req, spec.chan)
+  ELSE
+    spec.nextPoll := GetWord(SysTimerCLO) + req.IRQInterval * 1000;
+    req.Status := Usb.ResInProgress
+  END
 END UpcallRestartInterrupt;
 
 
 
 
 PROCEDURE InitController(): BOOLEAN;
-VAR con: Dwc2Controller; vendorId, base, i: LONGINT;
+VAR con: Dwc2Controller; vendorId, base, i: LONGINT; s: ARRAY 16 OF CHAR;
 BEGIN
   IF ControllerCount >= MaxControllers THEN RETURN FALSE END;
+
+  Kernel.GetConfig("Qemu", s);
+  qemuMode := (s[0] # 0X) & (s # "0");
+  IF qemuMode THEN
+    Kernel.WriteString("UsbDriver: Qemu mode, async interrupt handling enabled"); Kernel.WriteLn
+  END;
 
   (* Set up per-channel DMA bounce buffers, 64-byte aligned *)
   base := SYSTEM.ADR(chanBufRaw[0]);
@@ -1244,7 +1321,7 @@ BEGIN
 END Init;
 
 BEGIN
-  ControllerCount := 0; FirstController := NIL;
+  ControllerCount := 0; FirstController := NIL; qemuMode := FALSE;
   Kernel.InstallTermHandler(Cleanup);
   Init
 END UsbDriver.

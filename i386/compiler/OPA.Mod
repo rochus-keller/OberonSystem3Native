@@ -68,6 +68,7 @@ MODULE OPA; (** non-portable *)
   (* Scanner: ASCII codes *)
   TAB = 09X;
   CR = 0DX;
+  LF = 0AX;
   SPACE = 20X;
   (* Scanner: Sym values *)
   ScUndef = 0;
@@ -488,7 +489,7 @@ VAR
  BEGIN
   WHILE (OPS.ch = SPACE) OR (OPS.ch = TAB) DO OPM.Get(OPS.ch) END;
   IF OPS.ch = ";" THEN
-   WHILE (OPS.ch # CR) DO OPM.Get(OPS.ch) END (* Skip comments *)
+   WHILE (OPS.ch # CR) & (OPS.ch # LF) DO OPM.Get(OPS.ch) END (* Skip comments *)
   END
  END skipBlanks;
 
@@ -564,7 +565,8 @@ VAR
   | "]":   OPM.Get(OPS.ch); sym := ScRBrak
   | "{":   OPM.Get(OPS.ch); sym := ScLBrace
   | "}":   OPM.Get(OPS.ch); sym := ScRBrace
-  | CR: OPM.Get(OPS.ch); sym := ScCR
+  | CR:  OPM.Get(OPS.ch); sym := ScCR
+  | LF:  OPM.Get(OPS.ch); sym := ScCR
   | "*": OPM.Get(OPS.ch); sym := ScMult
   | "/": OPM.Get(OPS.ch); sym := ScDiv
   | "+": OPM.Get(OPS.ch); sym := ScPlus

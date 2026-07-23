@@ -6,13 +6,13 @@ Refer to the license.txt file provided with this distribution. *)
 
 
 MODULE OPL; (** non-portable *)
- IMPORT OPT, OPO, OPM, SYSTEM;
+ IMPORT OPT, OPIR, OPO, OPM, SYSTEM;
  
  CONST
   NewRef = TRUE;
   Experimental = TRUE;
  
-  Reg= OPO.Reg; Abs = OPO.Abs; RegRel =OPO.RegRel; Coc = OPO.Coc;
+  Reg= OPIR.Reg; Abs = OPIR.Abs; RegRel =OPIR.RegRel; Coc = OPIR.Coc;
 (*
 Opcodes of the pseudo risc machine
  
@@ -150,37 +150,39 @@ fcmp x,y floating point compare 2848 - freg freg -
 newStat begin of a new statement 3136 - text pos - -
  *) 
 
- ld* = 32; ldbdw* = 64; ldwdw* = 96; ldbw* = 128; 
- ldbdwu* = 160; ldwdwu* = 196; ldbwu* = 224; getReg* = 256 ;
- putReg* = 288; ldProc* = 320; ldXProc* = 352; lea* = 384; 
- store* = 416; push* = 448; pop* = 480; add* = 512; 
- sub* = 544; mul* = 576; div* = 608; mod* = 640; 
- neg*= 960; abs* = 992; cmp* = 1056; je* = 1504; 
- jne* = 1536; jl* = 1568; jle* = 1600; jg* = 1632; 
- jge* = 1664; ja* = 1696; jae* = 1728; jb* = 1760; 
- jbe* = 1792; jc* = 1824; jnc* = 1856; jmp* = 1888; 
- jmpReg* = 1920; sete* = 1120; setne* = 1152; setl* = 1184; 
- setle* = 1216; setg* = 1248; setge* = 1280; seta* = 1312; 
- setae* = 1344; setb* = 1376; setbe* = 1408; setc* = 1440; 
- setnc* = 1472; te* = 1952; tne* = 1984; tle* = 2944;
- ta* = 2016; tae* = 2880; to* = 2912; 
- trap* = 2048; or* = 672; xor* = 704; and* = 736; 
- not* = 1024; bt* = 1088; btr* = 768; bts* = 800; test* = 3424;
- call* = 2080; callReg* = 2112; xcall* = 2144; ret* = 2176; 
- enter* = 2208; leave* = 2240; sal* = 832; sar* = 864; 
- shr* = 896; rol* = 928; cld* = 2272; repMovs* = 2304; 
- cmpString* = 2336; pushReg* = 2368; popReg* = 2400; case* = 2432; 
- short* = 2976; phi* = 2464; label* = 2496; entier* = 3104;
- cli* = 3168; sti* = 3200; in* = 3232; out* = 3264;
- assembler* = 3296;
- clear*= 3328; std*= 3392;
+ (* pseudo-RISC opcodes - defined in OPIR, aliased here for backward compatibility *)
+ ld* = OPIR.ld; ldbdw* = OPIR.ldbdw; ldwdw* = OPIR.ldwdw; ldbw* = OPIR.ldbw; 
+ ldbdwu* = OPIR.ldbdwu; ldwdwu* = OPIR.ldwdwu; ldbwu* = OPIR.ldbwu; getReg* = OPIR.getReg;
+ putReg* = OPIR.putReg; ldProc* = OPIR.ldProc; ldXProc* = OPIR.ldXProc; lea* = OPIR.lea; 
+ store* = OPIR.store; push* = OPIR.push; pop* = OPIR.pop; add* = OPIR.add; 
+ sub* = OPIR.sub; mul* = OPIR.mul; div* = OPIR.div; mod* = OPIR.mod; 
+ neg*= OPIR.neg; abs* = OPIR.abs; cmp* = OPIR.cmp; je* = OPIR.je; 
+ jne* = OPIR.jne; jl* = OPIR.jl; jle* = OPIR.jle; jg* = OPIR.jg; 
+ jge* = OPIR.jge; ja* = OPIR.ja; jae* = OPIR.jae; jb* = OPIR.jb; 
+ jbe* = OPIR.jbe; jc* = OPIR.jc; jnc* = OPIR.jnc; jmp* = OPIR.jmp; 
+ jmpReg* = OPIR.jmpReg; sete* = OPIR.sete; setne* = OPIR.setne; setl* = OPIR.setl; 
+ setle* = OPIR.setle; setg* = OPIR.setg; setge* = OPIR.setge; seta* = OPIR.seta; 
+ setae* = OPIR.setae; setb* = OPIR.setb; setbe* = OPIR.setbe; setc* = OPIR.setc; 
+ setnc* = OPIR.setnc; te* = OPIR.te; tne* = OPIR.tne; tle* = OPIR.tle;
+ ta* = OPIR.ta; tae* = OPIR.tae; to* = OPIR.to; 
+ trap* = OPIR.trap; or* = OPIR.or; xor* = OPIR.xor; and* = OPIR.and; 
+ not* = OPIR.not; bt* = OPIR.bt; btr* = OPIR.btr; bts* = OPIR.bts; test* = OPIR.test;
+ call* = OPIR.call; callReg* = OPIR.callReg; xcall* = OPIR.xcall; ret* = OPIR.ret; 
+ enter* = OPIR.enter; leave* = OPIR.leave; sal* = OPIR.sal; sar* = OPIR.sar; 
+ shr* = OPIR.shr; rol* = OPIR.rol; cld* = OPIR.cld; repMovs* = OPIR.repMovs; 
+ cmpString* = OPIR.cmpString; pushReg* = OPIR.pushReg; popReg* = OPIR.popReg; case* = OPIR.case; 
+ short* = OPIR.short; phi* = OPIR.phi; label* = OPIR.label; entier* = OPIR.entier;
+ cli* = OPIR.cli; sti* = OPIR.sti; in* = OPIR.in; out* = OPIR.out;
+ assembler* = OPIR.assembler;
+ clear*= OPIR.clear; std*= OPIR.std;
+ dmb* = OPIR.dmb;
 
- (* floating point *)
- fload*= 2528; fstore* = 2560; fist*= 2592; fild* = 2624;
- fadd* = 2656; fsub* = 2688; fmul* = 2720; fdiv* = 2752;
- fabs* = 2784; fchs* = 2816; fcmp* = 2848;
+ (* floating point - defined in OPIR *)
+ fload*= OPIR.fload; fstore* = OPIR.fstore; fist*= OPIR.fist; fild* = OPIR.fild;
+ fadd* = OPIR.fadd; fsub* = OPIR.fsub; fmul* = OPIR.fmul; fdiv* = OPIR.fdiv;
+ fabs* = OPIR.fabs; fchs* = OPIR.fchs; fcmp* = OPIR.fcmp;
 
- newStat* = 3136;
+ newStat* = OPIR.newStat;
  
  (* short form *)
  Ld = ld DIV 32; Ldbdw = ldbdw DIV 32; Ldwdw = ldwdw DIV 32; Ldbw = ldbw DIV 32; 
@@ -207,6 +209,7 @@ newStat begin of a new statement 3136 - text pos - -
  Cli = cli DIV 32; Sti = sti DIV 32; In = in DIV 32; Out = out DIV 32;
  Assembler = assembler DIV 32;
  Clear = clear DIV 32; Std = std DIV 32;
+ Dmb = dmb DIV 32;
 
  (* floating point *)
  FLoad= fload DIV 32; FStore = fstore DIV 32; Fist= fist DIV 32; Fild = fild DIV 32;
@@ -312,29 +315,32 @@ References:
   TypeTag = 8BX;
   RefTag = 8CX;
 
- (* hints for the pseudo machine *)
-  noHint* = -1;
-  useEAX* = 0; useECX* = 1; useEDX* = 2; useEBX* = 3; useESP* = 4; useEBP* = 5; useESI* = 6; useEDI* = 7;
-  useST* = 8;
-  tryEAX* = 16; tryECX* = 17; tryEDX* = 18; tryEBX* = 19; tryESI* = 22; tryEDI* = 23;
+ (* hints for the pseudo machine - defined in OPIR with generic names, aliased here with i386 names *)
+   noHint* = OPIR.noHint;
+   useEAX* = OPIR.useReg0; useECX* = OPIR.useReg1; useEDX* = OPIR.useReg2; useEBX* = OPIR.useReg3;
+   useESP* = OPIR.useReg4; useEBP* = OPIR.useReg5; useESI* = OPIR.useReg6; useEDI* = OPIR.useReg7;
+   useST* = OPIR.useFReg;
+   tryEAX* = OPIR.tryReg0; tryECX* = OPIR.tryReg1; tryEDX* = OPIR.tryReg2; tryEBX* = OPIR.tryReg3;
+   tryESI* = OPIR.tryReg6; tryEDI* = OPIR.tryReg7;
  
-  useReg = {useEAX, useECX, useEDX, useEBX, useESP, useEBP, useESI, useEDI};
-  tryReg = {tryEAX, tryECX, tryEDX, tryEBX, tryESI, tryEDI};
+   useReg = {useEAX, useECX, useEDX, useEBX, useESP, useEBP, useESI, useEDI};
+   tryReg = {tryEAX, tryECX, tryEDX, tryEBX, tryESI, tryEDI};
 
- (* pseudo register *)
-  none* = -1; RiscFP* = -2; RiscESP* = -3;
- noScale = OPO.noScale; Scale1 = OPO.Scale1; Scale2 = OPO.Scale2; Scale4 = OPO.Scale4; 
- RegReg  = OPO.RegReg; (* register to register *)
- RegMem  = OPO.RegMem; (* register to memory *)
- MemReg  = OPO.MemReg; (* memory to register *)
- ImmReg  = OPO.ImmReg; (* immediate to register *)
- ImmMem  = OPO.ImmMem; (* immediate to memory *)
- Nil* = OPM.LANotAlloc; (* for Instr[..].pc initialization *)
+ (* pseudo register - defined in OPIR *)
+   none* = OPIR.none; RiscFP* = OPIR.FP; RiscESP* = OPIR.SP;
+  noScale = OPIR.noScale; Scale1 = OPIR.Scale1; Scale2 = OPIR.Scale2; Scale4 = OPIR.Scale4; 
+  RegReg  = OPIR.RegReg; (* register to register *)
+  RegMem  = OPIR.RegMem; (* register to memory *)
+  MemReg  = OPIR.MemReg; (* memory to register *)
+  ImmReg  = OPIR.ImmReg; (* immediate to register *)
+  ImmMem  = OPIR.ImmMem; (* immediate to memory *)
+  Nil* = OPIR.Nil; (* for OPIR.Instr[..].pc initialization *)
 
- (* Traps *)
-  WithTrap* = 1; CaseTrap* = 2; FuncTrap* = 3; EqualGuardTrap* = 5; GuardTrap* = 6;
-  OverflowTrap* = 4; RangeTrap* = 7; DimTrap* = 9;
-  nofTrapFixups = 10; (* highest trap number + 1 *)
+ (* Traps - defined in OPIR *)
+   WithTrap* = OPIR.WithTrap; CaseTrap* = OPIR.CaseTrap; FuncTrap* = OPIR.FuncTrap;
+   EqualGuardTrap* = OPIR.EqualGuardTrap; GuardTrap* = OPIR.GuardTrap;
+   OverflowTrap* = OPIR.OverflowTrap; RangeTrap* = OPIR.RangeTrap; DimTrap* = OPIR.DimTrap;
+   nofTrapFixups = 10; (* highest trap number + 1 *)
 
  (* option *)
   PtrInit = 5;
@@ -342,36 +348,22 @@ References:
  (* predefined Entry numbers and Link indices. EntrNr = EntryNr - 1 -> EntryNr = 0 does not exist *)
   CaseTabelIndex = 0; CaseTableEntryNr = 255;
   LocProcAssIndex = 1; LocProcAssEntryNr = 254;
-  NewLinkIndex* = 2; NewEntryNr* = 253;
-  NewSysLinkIndex* = 3; NewSysEntryNr* = 252;
-  NewArrayLinkIndex* = 4; NewArrayEntryNr* = 251;
-  StartIndex* = 5; StartEntryNr* = 250;
-  AwaitIndex* = 6; AwaitEntryNr* = 249;
+  NewLinkIndex* = OPIR.NewLinkIndex; NewEntryNr* = OPIR.NewEntryNr;
+  NewSysLinkIndex* = OPIR.NewSysLinkIndex; NewSysEntryNr* = OPIR.NewSysEntryNr;
+  NewArrayLinkIndex* = OPIR.NewArrayLinkIndex; NewArrayEntryNr* = OPIR.NewArrayEntryNr;
+  StartIndex* = OPIR.StartIndex; StartEntryNr* = OPIR.StartEntryNr;
+  AwaitIndex* = OPIR.AwaitIndex; AwaitEntryNr* = OPIR.AwaitEntryNr;
   
-  LockIndex* = 7; LockEntryNr* = 247;
-  UnlockIndex* = 8; UnlockEntryNr* = 246;
+  LockIndex* = OPIR.LockIndex; LockEntryNr* = OPIR.LockEntryNr;
+  UnlockIndex* = OPIR.UnlockIndex; UnlockEntryNr* = OPIR.UnlockEntryNr;
   InitLinks = 9; (* Number of special links *)
 
  TYPE
-  Instruction* = RECORD 
-   scale*, reg*: SHORTINT;
-   op*: INTEGER;
-   dest*, src1*, src2*, inx*, pc*, hint*: LONGINT; (* pc: PC on the target machine, used for jumps *)
-   link*, used*: INTEGER;
-   node*: OPT.Node;
-   abs*: BOOLEAN; (* absolute address, should not be fixed. Def = FALSE. *)  (* GetPut *)
-  END;
-  InstructionTable* = POINTER TO ARRAY OF Instruction;
-
-  Map* = POINTER TO MapDesc;
-  MapDesc* = ARRAY OF RECORD
-   pos*, pc* : LONGINT
-  END;
-  
- VAR
-  Instr*:  InstructionTable; (* Pseudo Code *)
-  mapSize* : LONGINT;
-  map* : Map;
+  (* IR types - defined in OPIR, aliased here for backward compatibility *)
+  Instruction* = OPIR.Instruction;
+  InstructionTable* = OPIR.InstructionTable;
+  Map* = OPIR.Map;
+  MapDesc* = OPIR.MapDesc;
 
 (* Target Code i386 definitions *)
 
@@ -431,8 +423,8 @@ References:
   Mem = MemReg;
   Imme = ImmReg;
 
-  (* register/memory size (8,16, 32 or 64 bit) *)
-  Bit8 = OPO.Bit8; Bit16 = OPO.Bit16; Bit32 = OPO.Bit32 (* must be 0 *); Bit64 = OPO.Bit64;
+  (* register/memory size (8,16, 32 or 64 bit) - defined in OPIR *)
+  Bit8 = OPIR.Bit8; Bit16 = OPIR.Bit16; Bit32 = OPIR.Bit32 (* must be 0 *); Bit64 = OPIR.Bit64;
 
   (* i387 *)
   sReal = OPO.sReal;  (* short real 32 bit = Bit32 *)
@@ -543,7 +535,7 @@ References:
   VarEntryErr := FALSE; LinkErr := FALSE;
   OPO.dsize := 0; OPO.csize := 0; OPO.pc := 0; noVarEntries := 0; nofptrs := 0; nofVarConsLinks := 0;
   nofrecs := 0; nofEntries := 0; nofSavedLevel := 0;
-  OPO.csize := 4;  (*module.SELF*)
+  IF OPM.aosFlag THEN OPO.csize := 0 ELSE OPO.csize := 4 END;  (*module.SELF: 4 bytes for System 3, 0 for AOS*)
   varConsLink [0].noflinks := 0; varConsLink [0].entry := -1; varConsLink [0].noflinks := 0; 
   varConsLink [0].index := noEntry;
   nofVarCons := 1;
@@ -601,7 +593,7 @@ References:
    IF regTab [reg] = Splitted THEN (* 8 bit register is occupied -> move value to another register *)
     GetReg8 (i);
     ASSERT (sregTab [this - AL] >= 0);
-    Instr [sregTab [this-AL]].reg := i;
+    OPIR.Instr [sregTab [this-AL]].reg := i;
     OPO.GenMOV (RegReg, i, this, noInx, noScale, noDisp, noImm);
     sregTab [i - AL] := sregTab [this-AL];
     sregTab [this-AL] := Occupied
@@ -673,7 +665,7 @@ References:
      r0 := reg + AL; r1 := reg
     END;
     GetReg8 (r); OPO.GenMOV (RegReg, r, r0, noInx, noScale, noDisp, noImm);
-    sregTab [r - AL] := sregTab [r1]; Instr [sregTab [r1]].reg := r; sregTab [r1] := free
+    sregTab [r - AL] := sregTab [r1]; OPIR.Instr [sregTab [r1]].reg := r; sregTab [r1] := free
    ELSE
     r := EBX;
     WHILE (r >= EAX) & (regTab [r] # free) DO DEC (r) END; (* search any free, splittable register *)
@@ -685,8 +677,8 @@ References:
      OPO.GenMOV (RegReg, r, reg, noInx, noScale, noDisp, noImm);
      r0 := r + AL; r1 := r0 + 4; regTab [r] := Splitted;
     END;
-    sregTab [r0 - AL] := sregTab [reg + AL]; Instr [sregTab [reg + AL]].reg := r0; sregTab [r0 - AL] := free;
-    sregTab [r1 - AL] := sregTab [reg + AL + 4]; Instr [sregTab [reg + AL + 4]].reg := r1; sregTab [r1 - AL] := free
+    sregTab [r0 - AL] := sregTab [reg + AL]; OPIR.Instr [sregTab [reg + AL]].reg := r0; sregTab [r0 - AL] := free;
+    sregTab [r1 - AL] := sregTab [reg + AL + 4]; OPIR.Instr [sregTab [reg + AL + 4]].reg := r1; sregTab [r1 - AL] := free
    END;
    (*regTab [reg] := Occupied*)
   ELSIF regTab [reg] # free THEN (* conflict *)
@@ -694,8 +686,8 @@ References:
    ASSERT (pReg >= 0);
    GetReg (r); 
    regTab [r] := pReg;
-   INC (r, SHORT ((Instr[pReg].op MOD 8) * 8));
-   Instr [pReg].reg := r; (* Instr [regTab [reg]].reg = new register *)
+   INC (r, SHORT ((OPIR.Instr[pReg].op MOD 8) * 8));
+   OPIR.Instr [pReg].reg := r; (* Instr [regTab [reg]].reg = new register *)
    OPO.GenMOV (RegReg, r, reg, noInx, noScale, noDisp, noImm)
   END;
   regTab [reg] := Occupied
@@ -705,7 +697,7 @@ References:
  (* assigns pReg to any free register *)
   VAR reg: SHORTINT; size: LONGINT;
  BEGIN
-  size := Instr [pReg].op MOD 8;
+  size := OPIR.Instr [pReg].op MOD 8;
   IF size = 2 THEN (* Byte *)
    GetReg8 (reg);
    sregTab [reg-AL] := pReg
@@ -714,7 +706,7 @@ References:
    regTab [reg] := pReg;
    IF size = 1 THEN (* Word *) INC (reg, AX) END
   END;
-  Instr [pReg].reg := reg
+  OPIR.Instr [pReg].reg := reg
  END AssignNewReg;
  
  PROCEDURE AssignThisReg (pReg: LONGINT; this: SHORTINT);
@@ -727,7 +719,7 @@ References:
    GetThisReg (this);
    regTab [this MOD 8] := pReg
   END;
-  Instr [pReg].reg := this
+  OPIR.Instr [pReg].reg := this
  END AssignThisReg;
  
  PROCEDURE^ LastUse (reg: SHORTINT): BOOLEAN;
@@ -736,7 +728,7 @@ References:
   VAR
    hint, size, pRegBase, pRegInx, pRegReg: LONGINT;
  BEGIN
-  hint := Instr[pReg].hint; size:= (Instr[pReg].op MOD 8) * 8;
+  hint := OPIR.Instr[pReg].hint; size:= (OPIR.Instr[pReg].op MOD 8) * 8;
   ASSERT ((reg = none) OR ((size = Bit8) & (reg >= AL)) OR  
    ((size = Bit16) & (reg >= AX)) OR ((size = Bit32) & (reg >= EAX)));
   IF hint >= tryEAX THEN
@@ -753,7 +745,7 @@ References:
   END;
   IF hint <= noHint THEN
    IF (reg = none) OR ~LastUse (reg) THEN AssignNewReg (pReg)
-   ELSE Instr[pReg].reg := reg
+   ELSE OPIR.Instr[pReg].reg := reg
    END
   ELSE
    IF reg >= AL THEN pRegReg := sregTab [reg - AL]
@@ -766,9 +758,9 @@ References:
    ELSIF base # noBase THEN pRegBase := regTab [base MOD 8]
    END;
    AssignThisReg (pReg, SHORT (SHORT (hint + size)));
-   IF (reg # none) & (pRegReg >= 0) THEN reg := Instr [pRegReg].reg END;
-   IF (inx # none) & (pRegInx >= 0) THEN inx := Instr [pRegInx].reg END;
-   IF (base # none) & (pRegBase >= 0) THEN base := Instr [pRegBase].reg END
+   IF (reg # none) & (pRegReg >= 0) THEN reg := OPIR.Instr [pRegReg].reg END;
+   IF (inx # none) & (pRegInx >= 0) THEN inx := OPIR.Instr [pRegInx].reg END;
+   IF (base # none) & (pRegBase >= 0) THEN base := OPIR.Instr [pRegBase].reg END
   END
  END AssignReg;
  
@@ -779,7 +771,7 @@ References:
   IF (reg > none) & ~(reg IN {ESP, SP, EBP, BP}) THEN
    IF reg IN {AL..BH} THEN
     i := reg-AL;
-    IF sregTab [i] >= 0 THEN Instr [sregTab [i]].reg := -2-reg END;
+    IF sregTab [i] >= 0 THEN OPIR.Instr [sregTab [i]].reg := -2-reg END;
     sregTab [i] := free;
     IF i < 4 THEN
      IF sregTab [i+4] = free THEN regTab [i] := free (* release 32/16 bit register *) END
@@ -787,7 +779,7 @@ References:
     END;
    ELSE
     i := reg MOD 8;
-    IF regTab [i] >= 0 THEN Instr [regTab [i]].reg := -2-reg END;
+    IF regTab [i] >= 0 THEN OPIR.Instr [regTab [i]].reg := -2-reg END;
     IF i IN {ESP, SP, EBP, BP} THEN regTab [i] := Occupied
     ELSE regTab [i] := free
     END
@@ -803,8 +795,8 @@ References:
    ELSE pReg := regTab [reg MOD 8]
    END;
    IF pReg > none THEN
-    DEC (Instr [pReg].used);
-    IF (Instr [pReg].used = 0) & (Instr [pReg].reg > Nil) THEN FreeReg (Instr [pReg].reg) END
+    DEC (OPIR.Instr [pReg].used);
+    IF (OPIR.Instr [pReg].used = 0) & (OPIR.Instr [pReg].reg > Nil) THEN FreeReg (OPIR.Instr [pReg].reg) END
    END
   END
  END DecReg;
@@ -819,7 +811,7 @@ References:
     IF reg >= AL THEN pReg := sregTab [reg-AL]
     ELSE pReg := regTab [reg MOD 8]
     END;
-    IF pReg > none THEN Instr [pReg].reg := -2-reg END
+    IF pReg > none THEN OPIR.Instr [pReg].reg := -2-reg END
    END
   END ReleaseReg;
 
@@ -843,7 +835,7 @@ References:
   END CheckRegister;
   
  BEGIN
-  reg:= Instr[pReg].reg; 
+  reg:= OPIR.Instr[pReg].reg; 
   CheckRegister (reg, src);
   CheckRegister (reg, base);
   CheckRegister (reg, inx);
@@ -861,7 +853,7 @@ References:
    
  PROCEDURE loaded (pReg: LONGINT): BOOLEAN;
  BEGIN
-  IF pReg > none THEN RETURN (Instr [pReg].reg > none)
+  IF pReg > none THEN RETURN (OPIR.Instr [pReg].reg > none)
   ELSE RETURN ((pReg = RiscESP) OR (pReg = RiscFP))
   END
  END loaded;
@@ -871,7 +863,7 @@ References:
  PROCEDURE FindReg (pReg: LONGINT; VAR reg: SHORTINT);
  BEGIN
   ASSERT (loaded (pReg));
-  IF pReg > none THEN reg := Instr [pReg].reg
+  IF pReg > none THEN reg := OPIR.Instr [pReg].reg
   ELSIF pReg = RiscESP THEN reg := ESP
   ELSE reg := EBP
   END
@@ -880,8 +872,8 @@ References:
  PROCEDURE FindLoadReg (pReg: LONGINT; VAR reg: SHORTINT);
  BEGIN
   IF pReg > none THEN
-   IF ~loaded (pReg) THEN Load (Instr [pReg]) END;
-   reg := Instr [pReg].reg
+   IF ~loaded (pReg) THEN Load (OPIR.Instr [pReg]) END;
+   reg := OPIR.Instr [pReg].reg
   ELSIF pReg = RiscESP THEN reg := ESP
   ELSIF pReg = RiscFP THEN reg := EBP
   ELSE reg := none
@@ -897,7 +889,7 @@ References:
   IF reg >= AL THEN pReg := sregTab [reg-AL]
   ELSE pReg := regTab [reg MOD 8]
   END;
-  IF pReg > none THEN  RETURN Instr[pReg].used = 1
+  IF pReg > none THEN  RETURN OPIR.Instr[pReg].used = 1
   ELSE 
    ASSERT (reg IN {ESP, SP, EBP, BP});
    RETURN TRUE
@@ -932,7 +924,7 @@ References:
     hint, size, pRegBase, pRegInx: LONGINT;
     base, inx, op: SHORTINT;  (* NM 7.6.94; workaround for sign-extended bug *)
   BEGIN
-   hint := Instr[pReg].hint; size:= (Instr[pReg].op MOD 8) * 8;
+   hint := OPIR.Instr[pReg].hint; size:= (OPIR.Instr[pReg].op MOD 8) * 8;
    IF hint >= tryEAX THEN
     IF size = Bit8 THEN
      IF (sregTab [hint - tryEAX] = free) & (regTab [hint - tryEAX] = free) THEN
@@ -956,9 +948,9 @@ References:
       ((size = Bit8) & (inx IN {EDI, ESI, ESP, EBP, DI, SI, SP, BP})) THEN 
       (* inx can't be reused *)
        AssignNewReg (pReg)
-      ELSE Instr[pReg].reg := inx MOD 8 + SHORT (SHORT (size))
+      ELSE OPIR.Instr[pReg].reg := inx MOD 8 + SHORT (SHORT (size))
       END
-    ELSE Instr[pReg].reg := base MOD 8 + SHORT (SHORT (size))
+    ELSE OPIR.Instr[pReg].reg := base MOD 8 + SHORT (SHORT (size))
     END
    ELSE
     IF inx >= AL THEN pRegInx := sregTab [inx - AL]
@@ -968,8 +960,8 @@ References:
     ELSIF base # noBase THEN pRegBase := regTab [base MOD 8]
     END;
     AssignThisReg (pReg, SHORT (SHORT (hint + size)));
-    IF (inx # none) & (pRegInx >= 0) THEN inxReg := Instr [pRegInx].reg END;
-    IF (base # none) & (pRegBase >= 0) THEN baseReg := Instr [pRegBase].reg END
+    IF (inx # none) & (pRegInx >= 0) THEN inxReg := OPIR.Instr [pRegInx].reg END;
+    IF (base # none) & (pRegBase >= 0) THEN baseReg := OPIR.Instr [pRegBase].reg END
    END
   END AssignReg;
 
@@ -1005,7 +997,7 @@ References:
    VAR
     hint, size: LONGINT;
   BEGIN
-   hint := Instr[pReg].hint; size:= (Instr[pReg].op MOD 8) * 8;
+   hint := OPIR.Instr[pReg].hint; size:= (OPIR.Instr[pReg].op MOD 8) * 8;
    IF hint >= tryEAX THEN
     IF size = Bit8 THEN
      IF sregTab [hint - tryEAX] = free THEN
@@ -1051,8 +1043,8 @@ References:
   IF instr.op DIV 32 = GETreg THEN
    OPO.GenMOV (mode, SHORT (instr.hint + size), base, inx, scale, disp, noImm);
    reg := none; delta := 0
-  ELSIF ~loaded (instr.dest) & ((Instr [instr.dest].op DIV 8) MOD 4 = ImmReg) THEN
-   OPO.GenMOV (ImmMem, size, base, inx, scale, disp, Instr [instr.dest].src2);
+  ELSIF ~loaded (instr.dest) & ((OPIR.Instr [instr.dest].op DIV 8) MOD 4 = ImmReg) THEN
+   OPO.GenMOV (ImmMem, size, base, inx, scale, disp, OPIR.Instr [instr.dest].src2);
    mode := ImmMem;
    IF OPO.lastImmSize = Bit8 THEN delta := 1
    ELSIF OPO.lastImmSize = Bit16 THEN delta := 2
@@ -1085,7 +1077,7 @@ ASSERT(~loaded(instr.dest));
 ;ASSERT(loaded(instr.dest));
   ELSE
    ASSERT(loaded(instr.src1));
-   FreeReg(Instr[instr.src1].reg)
+   FreeReg(OPIR.Instr[instr.src1].reg)
   END;
   IF pin THEN OPO.GenIN(size) ELSE OPO.GenOUT(size) END; (* Bug1 *)
   FreeReg( DX );
@@ -1143,7 +1135,7 @@ ASSERT(~loaded(instr.dest));
   op := SHORT (instr.op DIV 32);
   IF op = JmpReg THEN
    IF ~loaded (instr.src2) THEN
-    FindMemReg (Instr[instr.src2], mode, scale, size, base, inx, disp);
+    FindMemReg (OPIR.Instr[instr.src2], mode, scale, size, base, inx, disp);
     OPO.GenJMP (Mem, 0, base, inx, scale, disp);
     DecReg (base); DecReg (inx)
    ELSE
@@ -1153,25 +1145,25 @@ ASSERT(~loaded(instr.dest));
    END
   ELSIF op = Jmp THEN
    IF RiscPC >= instr.src2 THEN (* backward jump *)
-    disp := Instr [instr.src2].pc - (OPO.pc+2);
+    disp := OPIR.Instr [instr.src2].pc - (OPO.pc+2);
     IF disp < -128 THEN DEC (disp, 3) END; (* 32 bit displacement *)
     OPO.GenJMP (Imme, none, noBase, noInx, noScale, disp)
    ELSE (* link with fixup chain *)
     (* always 32 bit displacement *)
-    OPO.GenJMP (Imme, none, noBase, noInx, noScale, -2 - Instr [instr.src2].pc - 10000H);
-    Instr [instr.src2].pc := RiscPC
+    OPO.GenJMP (Imme, none, noBase, noInx, noScale, -2 - OPIR.Instr [instr.src2].pc - 10000H);
+    OPIR.Instr [instr.src2].pc := RiscPC
    END
   ELSE
    ASSERT ((op >= Je) & (op <= Jnc));
    op := JmpConvert [op-Je];
    IF RiscPC >= instr.src2 THEN (* backward jump *)
-    disp := Instr [instr.src2].pc - (OPO.pc+2);
+    disp := OPIR.Instr [instr.src2].pc - (OPO.pc+2);
     IF disp < -128 THEN DEC (disp, 4) END; (* 32 bit displacement *)
     OPO.GenJcc (op, disp)
    ELSE (* link with fixup chain *)
     (* always 32 bit displacement *)
-    OPO.GenJcc (op, -2 - Instr [instr.src2].pc - 10000H);
-    Instr [instr.src2].pc := RiscPC
+    OPO.GenJcc (op, -2 - OPIR.Instr [instr.src2].pc - 10000H);
+    OPIR.Instr [instr.src2].pc := RiscPC
    END
   END
  END Gen1;
@@ -1203,11 +1195,11 @@ ASSERT(~loaded(instr.dest));
   ELSIF  ~loaded (instr.src1) THEN
    IF  ~loaded (instr.src2) THEN
     FindLoadReg (instr.src1, src);
-    FindMemReg (Instr [instr.src2], dummy, scale, dummy, base, inx, disp);
+    FindMemReg (OPIR.Instr [instr.src2], dummy, scale, dummy, base, inx, disp);
     mode := MemReg
    ELSIF ((op = Add) OR (op = oR) OR (op = Xor) OR (op = And)) THEN
     FindReg (instr.src2, src);
-    FindMemReg (Instr [instr.src1], dummy, scale, dummy, base, inx, disp);
+    FindMemReg (OPIR.Instr [instr.src1], dummy, scale, dummy, base, inx, disp);
     mode := MemReg
    ELSE
     FindLoadReg (instr.src1, src);
@@ -1217,7 +1209,7 @@ ASSERT(~loaded(instr.dest));
   ELSIF ~loaded (instr.src2) THEN
    mode := MemReg;
    FindReg (instr.src1, src);
-   FindMemReg (Instr [instr.src2], dummy, scale, dummy, base, inx, disp)
+   FindMemReg (OPIR.Instr [instr.src2], dummy, scale, dummy, base, inx, disp)
   ELSE
    mode := RegReg;
    FindReg (instr.src1, src); FindReg (instr.src2, base);
@@ -1273,24 +1265,24 @@ ASSERT(~loaded(instr.dest));
    IF ~loaded (instr.src1) THEN
     IF ~loaded (instr.src2) THEN
      FindLoadReg (instr.src1, reg);
-     FindMemReg (Instr [instr.src2], dummy, scale, dummy, base, inx, disp);
+     FindMemReg (OPIR.Instr [instr.src2], dummy, scale, dummy, base, inx, disp);
      mode := MemReg
     ELSE
      FindReg (instr.src2, reg);
-     FindMemReg (Instr [instr.src1], dummy, scale, dummy, base, inx, disp);
+     FindMemReg (OPIR.Instr [instr.src1], dummy, scale, dummy, base, inx, disp);
      mode := RegMem
     END
    ELSE
     FindReg (instr.src1, reg);
     IF ~loaded (instr.src2) THEN
-     FindMemReg (Instr [instr.src2], dummy, scale, dummy, base, inx, disp);
+     FindMemReg (OPIR.Instr [instr.src2], dummy, scale, dummy, base, inx, disp);
      mode := RegMem
     ELSE
      FindReg (instr.src2, base); inx := noInx; disp := noDisp; mode := RegReg
     END
    END
   ELSIF ~loaded (instr.src1) THEN
-   FindMemReg (Instr [instr.src1], dummy, scale, dummy, base, inx, disp);
+   FindMemReg (OPIR.Instr [instr.src1], dummy, scale, dummy, base, inx, disp);
    reg := size; mode := ImmMem
   ELSE
    FindReg (instr.src1, reg); base := noBase; inx := noInx; disp := noDisp
@@ -1343,7 +1335,7 @@ ASSERT(~loaded(instr.dest));
    IF regTab [EDX] = free THEN regTab [EDX] := Occupied END;
    IF ~LastUse (src) & (src IN {EAX, AX}) THEN (* conflict *)
     AssignNewReg (instr.src1); regTab [EAX] := Occupied;
-    OPO.GenMOV (RegReg, Instr [instr.src1].reg, EAX, noInx, noScale, noDisp, noImm)
+    OPO.GenMOV (RegReg, OPIR.Instr [instr.src1].reg, EAX, noInx, noScale, noDisp, noImm)
    ELSIF ~(src IN {EAX, AX}) THEN
     GetThisReg (EAX);
     OPO.GenMOV (RegReg, EAX, src, noInx, noScale, noDisp, noImm);
@@ -1381,13 +1373,13 @@ ASSERT(~loaded(instr.dest));
     FindReg (instr.src2, base); inx := noInx; scale := noScale; disp := noDisp
    ELSE
     mode := MemReg;
-    FindMemReg (Instr[instr.src2], dummy, scale, dummy, base, inx, disp)
+    FindMemReg (OPIR.Instr[instr.src2], dummy, scale, dummy, base, inx, disp)
    END
   ELSE
    inx := noInx; base := noBase
   END;
   IF ~loaded (instr.src1) THEN 
-   Instr [instr.src1].hint := useEAX;
+   OPIR.Instr [instr.src1].hint := useEAX;
    FindLoadReg (instr.src1, src)
   ELSE FindReg (instr.src1, src)
   END;
@@ -1417,7 +1409,7 @@ ASSERT(~loaded(instr.dest));
    END
   ELSE (* Bit16 / Bit32 *)
    IF ~LastUse (src) & (src IN {EAX, AX}) THEN (* conflict *)
-    AssignNewReg (instr.src1); src := Instr [instr.src1].reg;
+    AssignNewReg (instr.src1); src := OPIR.Instr [instr.src1].reg;
     OPO.GenMOV (RegReg, src, EAX, noInx, noScale, noDisp, noImm);
     regTab [EAX] := Occupied
    ELSIF ~(src IN {EAX, AX}) THEN
@@ -1438,8 +1430,8 @@ ASSERT(~loaded(instr.dest));
    END;
    OPO.Prefix (size, dummy); OPO.PutByte (CWD);
   END;
-  IF (base # none) & ((instr.op DIV 8) MOD 4 # ImmReg) THEN base := Instr [pRegBase].reg END;
-  IF inx # none THEN inx := Instr [pRegInx].reg END;
+  IF (base # none) & ((instr.op DIV 8) MOD 4 # ImmReg) THEN base := OPIR.Instr [pRegBase].reg END;
+  IF inx # none THEN inx := OPIR.Instr [pRegInx].reg END;
   IF mode = RegReg THEN OPO.GenIDIV (RegReg, base, noBase, noInx, noScale, noDisp)
   ELSE OPO.GenIDIV (mode, size, base, inx, scale, disp)
   END;
@@ -1503,11 +1495,11 @@ ASSERT(~loaded(instr.dest));
     FindReg (instr.src2, base); inx := noInx; scale := noScale; disp := noDisp
    ELSE
     mode := RegMem;
-    FindMemReg (Instr [instr.src2], dummy, scale, dummy, base, inx, disp)
+    FindMemReg (OPIR.Instr [instr.src2], dummy, scale, dummy, base, inx, disp)
    END
   END;
   IF ~loaded (instr.src1) THEN
-   IF size = Bit8 THEN Instr [instr.src1].hint := useEAX END;
+   IF size = Bit8 THEN OPIR.Instr [instr.src1].hint := useEAX END;
    FindLoadReg (instr.src1, src)
   ELSE FindReg (instr.src1, src)
   END;
@@ -1534,7 +1526,7 @@ ASSERT(~loaded(instr.dest));
       OPO.GenMOV (RegReg, AL, src, noInx, noScale, noDisp, noImm)
      END
     ELSE
-     GetThisReg (EAX); src := Instr [instr.src1].reg;
+     GetThisReg (EAX); src := OPIR.Instr [instr.src1].reg;
      OPO.GenMOV (RegReg, AL, src, noInx, noScale, noDisp, noImm)
     END;
     IF LastUse (src) THEN
@@ -1547,8 +1539,8 @@ ASSERT(~loaded(instr.dest));
      OPO.GenIMUL (mode, TRUE, instr.reg, base, inx, scale, disp, noImm);
      FreeReg (base); base := none
     ELSE
-     IF base # none THEN base := Instr [pRegBase].reg END;
-     IF inx # none THEN inx := Instr [pRegInx].reg END;
+     IF base # none THEN base := OPIR.Instr [pRegBase].reg END;
+     IF inx # none THEN inx := OPIR.Instr [pRegInx].reg END;
      OPO.GenIMUL (mode, TRUE, instr.reg, base, inx, scale, disp, noImm)
     END
    ELSE
@@ -1667,9 +1659,9 @@ ASSERT(~loaded(instr.dest));
   OPO.PutByte(0CCH);  (* INT 3 *)
  END GenTrap;
  
- PROCEDURE GenIntpt (Instr: Instruction);
+ PROCEDURE GenIntpt (instr: Instruction);
  BEGIN
-  OPO.PutByte(0CDH); OPO.PutByte(SHORT(SHORT(Instr.src2)));
+  OPO.PutByte(0CDH); OPO.PutByte(SHORT(SHORT(instr.src2)));
   FreeReg(EAX); FreeReg(EBX); FreeReg(ECX); FreeReg(EDX)
  END GenIntpt;
 
@@ -1755,13 +1747,13 @@ ASSERT(~loaded(instr.dest));
  PROCEDURE GenPhi (VAR instr: Instruction);
   VAR src1, src2: SHORTINT;
  BEGIN
-  ASSERT ((Instr [instr.src2].reg >= 0) & (Instr [instr.src1].reg # none));
-  IF Instr [instr.src1].reg < 0 THEN src1 := -2 - Instr [instr.src1].reg
+  ASSERT ((OPIR.Instr [instr.src2].reg >= 0) & (OPIR.Instr [instr.src1].reg # none));
+  IF OPIR.Instr [instr.src1].reg < 0 THEN src1 := -2 - OPIR.Instr [instr.src1].reg
   ELSE
-   src1 := Instr [instr.src1].reg;
+   src1 := OPIR.Instr [instr.src1].reg;
    FreeReg (src1)
   END;
-  src2 := Instr [instr.src2].reg;
+  src2 := OPIR.Instr [instr.src2].reg;
   IF src1 # src2 THEN (* src1, src2 must be the same register *)
    AssignThisReg (instr.src2, src1); 
    OPO.GenMOV (RegReg, src1, src2, noInx, noScale, noDisp, noImm);
@@ -1795,7 +1787,7 @@ ASSERT(~loaded(instr.dest));
  PROCEDURE FreeFreg (freg: SHORTINT);
  BEGIN
   IF freg > none THEN
-   IF fregTab [freg] > free THEN Instr [fregTab [freg]].reg := -2-freg END;
+   IF fregTab [freg] > free THEN OPIR.Instr [fregTab [freg]].reg := -2-freg END;
    fregTab [freg] := free;
    IF freg = ftop THEN
     ftop := (ftop + 1) MOD 8;
@@ -1811,7 +1803,7 @@ ASSERT(~loaded(instr.dest));
  PROCEDURE ReleaseFreg (freg: SHORTINT);
  BEGIN
   IF freg > none THEN
-   IF fregTab [freg] > free THEN Instr [fregTab [freg]].reg := -2-freg END;
+   IF fregTab [freg] > free THEN OPIR.Instr [fregTab [freg]].reg := -2-freg END;
    fregTab [freg] := free;
    ftop := (ftop + 1) MOD 8
   END
@@ -1822,25 +1814,25 @@ ASSERT(~loaded(instr.dest));
  BEGIN
   GetFreg (freg);
   fregTab [freg] := pReg;
-  Instr [pReg].reg := freg
+  OPIR.Instr [pReg].reg := freg
  END AssignFreg;
  
  PROCEDURE TakeFreg (pReg: LONGINT; freg: SHORTINT);
  BEGIN
   ASSERT (fregTab[freg] = free);
-  fregTab [freg] := pReg; Instr [pReg].reg := freg
+  fregTab [freg] := pReg; OPIR.Instr [pReg].reg := freg
  END TakeFreg;
  
  PROCEDURE FindFreg (pReg: LONGINT; VAR freg: SHORTINT);
  BEGIN
-  ASSERT ((pReg >= 0) & (Instr [pReg].reg >= 0));
-  freg := Instr [pReg].reg;
+  ASSERT ((pReg >= 0) & (OPIR.Instr [pReg].reg >= 0));
+  freg := OPIR.Instr [pReg].reg;
  END FindFreg;
  
  PROCEDURE LastUseF (freg: SHORTINT): BOOLEAN;
  BEGIN
   ASSERT ((freg IN {0..7}) & (fregTab [freg] >= 0));
-  RETURN Instr[fregTab [freg]].used = 1
+  RETURN OPIR.Instr[fregTab [freg]].used = 1
  END LastUseF;
  
  PROCEDURE DecCheckFreg (freg: SHORTINT);
@@ -1848,8 +1840,8 @@ ASSERT(~loaded(instr.dest));
  BEGIN
   IF freg > none THEN
    pReg := fregTab [freg];
-   DEC (Instr [pReg].used);
-   IF Instr [pReg].used = 0 THEN FreeFreg (freg) END
+   DEC (OPIR.Instr [pReg].used);
+   IF OPIR.Instr [pReg].used = 0 THEN FreeFreg (freg) END
   END
  END DecCheckFreg;
 
@@ -2276,7 +2268,7 @@ ASSERT(~loaded(instr.dest));
   WHILE j >= 0 DO
    GetFreg (freg); OPO.GenFLD (Mem, lReal, ESP, noInx, noScale, disp);
    fregTab [freg] := savedRegs [nofSavedLevel].freg [j];
-   Instr [fregTab [freg]].reg := freg;
+   OPIR.Instr [fregTab [freg]].reg := freg;
    INC (disp, 8);
    DEC (j) 
   END;
@@ -2299,7 +2291,7 @@ ASSERT(~loaded(instr.dest));
    instr.reg := EAX + size (* result in EAX, AX, AL *)
   ELSIF (size = Bit64) THEN
    regTab[EAX] := instr.dest; regTab[EDX] := instr.src1;
-   instr.reg := EAX;  Instr[instr.src1].reg := EDX
+   instr.reg := EAX;  OPIR.Instr[instr.src1].reg := EDX
   END;
   
   i := EDI;
@@ -2326,19 +2318,19 @@ ASSERT(~loaded(instr.dest));
     regTab[j] := savedRegs [nofSavedLevel].reg[i];
     
     IF regTab[j] = Splitted THEN
-     IF sregTab[j] >= 0 THEN Instr[sregTab[j]].reg := j + AL END;
-     IF sregTab[j+4] >= 0 THEN Instr[sregTab [j+4]].reg := j+4 + AL END
-    ELSIF (Instr[regTab[j]].op MOD 8 = 1) THEN (*size = Bit16*)
-     Instr[regTab[j]].reg := j+AX
+     IF sregTab[j] >= 0 THEN OPIR.Instr[sregTab[j]].reg := j + AL END;
+     IF sregTab[j+4] >= 0 THEN OPIR.Instr[sregTab [j+4]].reg := j+4 + AL END
+    ELSIF (OPIR.Instr[regTab[j]].op MOD 8 = 1) THEN (*size = Bit16*)
+     OPIR.Instr[regTab[j]].reg := j+AX
     ELSE
-     Instr[regTab[j]].reg := j
+     OPIR.Instr[regTab[j]].reg := j
     END
 (*            
     IF regTab[j] # Splitted THEN
-     Instr[regTab[j]].reg := j 
+     OPIR.Instr[regTab[j]].reg := j 
     ELSE
-     IF sregTab[j] >= 0 THEN Instr[sregTab[j]].reg := j + AL END;
-     IF sregTab[j+4] >= 0 THEN Instr[sregTab [j+4]].reg := j+4 + AL END
+     IF sregTab[j] >= 0 THEN OPIR.Instr[sregTab[j]].reg := j + AL END;
+     IF sregTab[j+4] >= 0 THEN OPIR.Instr[sregTab [j+4]].reg := j+4 + AL END
     END
 *)
    END;
@@ -2370,14 +2362,14 @@ ASSERT(~loaded(instr.dest));
      OPO.GenPOP (Regs, i, noBase, noInx, noScale, noDisp);
      regTab [i] := Splitted;
      sregTab [i] := sregTab [0];
-     IF sregTab [0] >= 0 THEN Instr [sregTab [0]].reg := i + AL END;
+     IF sregTab [0] >= 0 THEN OPIR.Instr [sregTab [0]].reg := i + AL END;
      INC (i, 4);
      sregTab [i] := sregTab [4];
-     IF sregTab [4] >= 0 THEN Instr [sregTab [4]].reg := i + AL END;
+     IF sregTab [4] >= 0 THEN OPIR.Instr [sregTab [4]].reg := i + AL END;
     ELSE
      regTab [EAX] := Eax;
      AssignNewReg (Eax);
-     OPO.GenPOP (Regs, Instr [regTab [EAX]].reg MOD 8, noBase, noScale, noInx, noDisp)
+     OPO.GenPOP (Regs, OPIR.Instr [regTab [EAX]].reg MOD 8, noBase, noScale, noInx, noDisp)
     END
    END;
    IF size = Bit8 THEN
@@ -2396,8 +2388,8 @@ ASSERT(~loaded(instr.dest));
   VAR pos, nextLabel: LONGINT;
  BEGIN
   WHILE label # Nil DO
-   IF Instr [label].op = jmp THEN pos := Instr [label].pc + 1
-   ELSE (* jcc *) pos := Instr [label].pc + 2
+   IF OPIR.Instr [label].op = jmp THEN pos := OPIR.Instr [label].pc + 1
+   ELSE (* jcc *) pos := OPIR.Instr [label].pc + 2
    END;
    OPO.GetDWord (pos, nextLabel);
    OPO.PutDWordAt (pos, OPO.pc - (pos + 4));
@@ -2409,12 +2401,12 @@ ASSERT(~loaded(instr.dest));
   VAR elseLabel, from, to, val, caseFixup: LONGINT;
  BEGIN
   caseFixup := link [0].offset;
-  elseLabel := Instr [instr.src2].pc;
+  elseLabel := OPIR.Instr [instr.src2].pc;
   from := instr.src1; to := instr.src1 + instr.inx - 4; (* instr.inx = length *)
   WHILE from <= to DO
    OPO.GetConsDWord (from, val);
    IF val = Nil THEN val := elseLabel
-   ELSE val := Instr [val].pc
+   ELSE val := OPIR.Instr [val].pc
    END;
    IF from = to THEN (* last case table entry *)
     IF caseFixup >= 32768 THEN val := (caseFixup - 10000H) * 10000H + val
@@ -2436,14 +2428,14 @@ ASSERT(~loaded(instr.dest));
    L, L1: LONGINT;
    node: OPT.Node;
  BEGIN
-  node := Instr [i].node;
-  node.left.obj.linkadr := -2 - Instr[i].pc - 10000H;
+  node := OPIR.Instr [i].node;
+  node.left.obj.linkadr := -2 - OPIR.Instr[i].pc - 10000H;
   L := i;
   WHILE L > Nil DO
-   OPO.GetDWord (Instr[L].pc + 1, L1);
+   OPO.GetDWord (OPIR.Instr[L].pc + 1, L1);
    IF (L1 > -10000H) & (-2 - L1 > Nil) THEN
     L1 := -2 - L1;
-    OPO.PutDWordAt (Instr[L].pc + 1, -2 - Instr[L1].pc - 10000H) 
+    OPO.PutDWordAt (OPIR.Instr[L].pc + 1, -2 - OPIR.Instr[L1].pc - 10000H) 
    END;
    L := L1
   END
@@ -2481,16 +2473,16 @@ ASSERT(~loaded(instr.dest));
   PROCEDURE MarkPos;
   VAR j : LONGINT;
   BEGIN
-   IF mapSize < LEN(map^) THEN
-    map[mapSize].pos := Instr[i].src1;
-    map[mapSize].pc := OPO.pc;
-    j := mapSize-1;
-    WHILE (j>= 0) & (map[j].pos < 0) DO
-     map[j].pos := map[mapSize].pos; DEC(j)
+   IF OPIR.mapSize < LEN(OPIR.map^) THEN
+    OPIR.map[OPIR.mapSize].pos := OPIR.Instr[i].src1;
+    OPIR.map[OPIR.mapSize].pc := OPO.pc;
+    j := OPIR.mapSize-1;
+    WHILE (j>= 0) & (OPIR.map[j].pos < 0) DO
+     OPIR.map[j].pos := OPIR.map[OPIR.mapSize].pos; DEC(j)
     END;
-    INC(mapSize)
+    INC(OPIR.mapSize)
    ELSE
-    map[mapSize-1].pos := -1; map[mapSize-1].pc := -1
+    OPIR.map[OPIR.mapSize-1].pos := -1; OPIR.map[OPIR.mapSize-1].pc := -1
    END
   END MarkPos;
 
@@ -2511,67 +2503,67 @@ ASSERT(~loaded(instr.dest));
   i := 0;
   WHILE ~OPO.CodeErr & ~RegErr & (i < pSize) DO
 (*
-   IF (Label = SHORT (Instr [i].op DIV 32)) THEN
+   IF (Label = SHORT (OPIR.Instr [i].op DIV 32)) THEN
     WHILE (OPO.pc MOD 16) # 15 DO
      IF ~ODD(OPO.pc) THEN OPO.PutByte(90H)  ELSE  OPO.PutByte(89H); OPO.PutByte(0E4H)  END
     END;
    END;
 *)
-   node := Instr [i].node;
-   FixupJcc (Instr [i].pc);
-   Instr [i].pc := OPO.pc;
-   op := SHORT (Instr [i].op DIV 32);
+   node := OPIR.Instr [i].node;
+   FixupJcc (OPIR.Instr [i].pc);
+   OPIR.Instr [i].pc := OPO.pc;
+   op := SHORT (OPIR.Instr [i].op DIV 32);
    IF op > 0 THEN (* no dead code *)
 (*
     OPM.LogWLn; OPM.LogWNum(i, 3); OPM.LogWNum(op, 4);
-    OPM.LogWNum(Instr[i].op MOD 8, 2);
-    OPM.LogWNum(Instr[i].op DIV 8 MOD 4, 2);
-    OPM.LogWNum(Instr[i].dest, 4);
-    OPM.LogWNum(Instr[i].src1, 4);
-    OPM.LogWNum(Instr[i].src2, 4);
-    OPM.LogWNum(Instr[i].inx, 4);
-    OPM.LogWNum(Instr[i].hint, 4);
+    OPM.LogWNum(OPIR.Instr[i].op MOD 8, 2);
+    OPM.LogWNum(OPIR.Instr[i].op DIV 8 MOD 4, 2);
+    OPM.LogWNum(OPIR.Instr[i].dest, 4);
+    OPM.LogWNum(OPIR.Instr[i].src1, 4);
+    OPM.LogWNum(OPIR.Instr[i].src2, 4);
+    OPM.LogWNum(OPIR.Instr[i].inx, 4);
+    OPM.LogWNum(OPIR.Instr[i].hint, 4);
 *)
     CASE op OF
-     NewStat: OPM.errpos := Instr [i].src1;
-      IF map # NIL THEN MarkPos END;
-      | Ld, Lea, Ldbdw, Ldwdw, Ldbw, Ldbdwu, Ldwdwu, Ldbwu, PUTreg: Load (Instr [i])
-      | LdProc, LdXProc: LoadProc (Instr [i])
-      | Sto, GETreg: Store (Instr [i])
-      | Push: GenPush (Instr [i])
-      | Pop: GenPop (Instr [i])
-      | Add, Sub, oR..Rol: Gen3 (Instr [i])
-      | Div, Mod: GenDivMod (Instr [i])
-      | Mul: GenMul (Instr [i])
-      | Neg, Not: Gen2 (Instr [i])
-      | Abso: GenAbs (Instr [i])
-      | Cmp, Bt, Test: Flags (Instr [i])
-      | Sete..Setnc: Setcc (Instr [i])
-      | Je..JmpReg: Gen1 (Instr [i], i)
-      | Te..Ta, To, Tae, Tle: GenTrapCC (Instr [i])
-      | Trap: GenTrap (Instr[i].src2)
+     NewStat: OPM.errpos := OPIR.Instr [i].src1;
+      IF OPIR.map # NIL THEN MarkPos END;
+      | Ld, Lea,Ldbdw, Ldwdw, Ldbw, Ldbdwu, Ldwdwu, Ldbwu, PUTreg: Load (OPIR.Instr [i])
+      | LdProc, LdXProc: LoadProc (OPIR.Instr [i])
+      | Sto, GETreg: Store (OPIR.Instr [i])
+      | Push: GenPush (OPIR.Instr [i])
+      | Pop: GenPop (OPIR.Instr [i])
+      | Add, Sub, oR..Rol: Gen3 (OPIR.Instr [i])
+      | Div, Mod: GenDivMod (OPIR.Instr [i])
+      | Mul: GenMul (OPIR.Instr [i])
+      | Neg, Not: Gen2 (OPIR.Instr [i])
+      | Abso: GenAbs (OPIR.Instr [i])
+      | Cmp, Bt, Test: Flags (OPIR.Instr [i])
+      | Sete..Setnc: Setcc (OPIR.Instr [i])
+      | Je..JmpReg: Gen1 (OPIR.Instr [i], i)
+      | Te..Ta, To, Tae, Tle: GenTrapCC (OPIR.Instr [i])
+      | Trap: GenTrap (OPIR.Instr[i].src2)
       | Call:
-      node := Instr [i].node;
+      node := OPIR.Instr [i].node;
       obj := node.left.obj;
       IF obj.mode = CProc THEN (* code procedure, inline expansion *)
        HALT(99)
-      ELSIF Instr [i].src2 >= 0 THEN (* backward call *)
-       OPO.GenCALL (Imme, none, noBase, noInx, noScale, Instr [i].src2 - (OPO.pc+5))
+      ELSIF OPIR.Instr [i].src2 >= 0 THEN (* backward call *)
+       OPO.GenCALL (Imme, none, noBase, noInx, noScale, OPIR.Instr [i].src2 - (OPO.pc+5))
       ELSE (* forward call *)
-       OPO.GenCALL (Imme, none, noBase, noInx, noScale, Instr [i].src2);
+       OPO.GenCALL (Imme, none, noBase, noInx, noScale, OPIR.Instr [i].src2);
        IF -2 - node.left.obj.linkadr = i THEN (* last call in the pseudo code *)
         EncodeFixup (i)
        END (* ELSE fixup follows later *)
       END
       | Xcall:
       OPO.GenCALL (Imme, none, noBase, noInx, noScale, 0);
-      AddLink (Instr [i].src2 DIV 10000H, Instr [i].pc + 1)
+      AddLink (OPIR.Instr [i].src2 DIV 10000H, OPIR.Instr [i].pc + 1)
       | CallReg: (* !!later optimize *)
-      FindReg (Instr [i].src2, reg);
+      FindReg (OPIR.Instr [i].src2, reg);
       OPO.GenCALL (Regs, reg, noBase, noInx, noScale, noDisp);
       DecReg (reg)
       | Enter:
-         IF map # NIL THEN MarkPos END;
+         IF OPIR.map # NIL THEN MarkPos END;
          IF node # NIL THEN
           list := node.obj.scope.scope;
           sysflag := node.obj.sysflag
@@ -2579,7 +2571,7 @@ ASSERT(~loaded(instr.dest));
           list := NIL;
           sysflag := 0
          END;
-         GenEnter(Instr[i].src2, list, sysflag);
+         GenEnter(OPIR.Instr[i].src2, list, sysflag);
       | Leave: (* !!later optmize if ESP = EBP *)
       GenLeave(sysflag)
       | Ret:
@@ -2614,29 +2606,30 @@ ASSERT(~loaded(instr.dest));
       IF sysflag = cdecl THEN
        OPO.GenRET (0)
       ELSE
-       OPO.GenRET (Instr [i].src2)
+       OPO.GenRET (OPIR.Instr [i].src2)
       END
-      | RepMovs: GenRepMovs (Instr [i])
-      | CmpString: GenCmpString (Instr [i])
+      | RepMovs: GenRepMovs (OPIR.Instr [i])
+      | CmpString: GenCmpString (OPIR.Instr [i])
       | Cld: OPO.PutByte (CLD)
       | Std: OPO.PutByte(STD)
       | PushReg: PushRegs
-      | PopReg: PopRegs (Instr [i]) 
-      | Case: FixupCaseTab (Instr [i])
-      | Phi: GenPhi (Instr [i])
-      | Short: GenShort (Instr [i])
-      | Entier: GenEntier (Instr [i])
+      | PopReg: PopRegs (OPIR.Instr [i]) 
+      | Case: FixupCaseTab (OPIR.Instr [i])
+      | Phi: GenPhi (OPIR.Instr [i])
+      | Short: GenShort (OPIR.Instr [i])
+      | Entier: GenEntier (OPIR.Instr [i])
       | Label: (* only used for jumps *)
-      | FLoad, Fild: Fload (Instr [i])
-      | FStore, Fist: Fstore (Instr [i])
-      | Fabs, Fchs: FloatGen1 (Instr [i])
-      | Fadd, Fsub, Fmul, Fdiv: FloatGen3 (Instr [i])
-      | Fcmp: FloatCmp (Instr [i])
+      | FLoad, Fild: Fload (OPIR.Instr [i])
+      | FStore, Fist: Fstore (OPIR.Instr [i])
+      | Fabs, Fchs: FloatGen1 (OPIR.Instr [i])
+      | Fadd, Fsub, Fmul, Fdiv: FloatGen3 (OPIR.Instr [i])
+      | Fcmp: FloatCmp (OPIR.Instr [i])
       | Cli: OPO.PutByte(CLI)
       | Sti: OPO.PutByte(STI)
-      | In, Out: GenPortIO(Instr [i])
-      | Assembler: GenAsm(Instr[i])
-      | Clear: ClearSDynArr(Instr[i])
+      | In, Out: GenPortIO(OPIR.Instr [i])
+      | Assembler: GenAsm(OPIR.Instr[i])
+      | Clear: ClearSDynArr(OPIR.Instr[i])
+      | Dmb: (* ignore in i386 *)
     ELSE HALT (BUG)
     END
    END;
@@ -3188,6 +3181,7 @@ ASSERT(~loaded(instr.dest));
   END FindNewMths;
 
  BEGIN (*  OutCode *)
+  modMap[0] := 0;
   linkCorrection := 0; i := 0;
   WHILE i < nofLinks DO
    IF (link[i].offset = Nil) OR (link[i].mod > 0) THEN INC (linkCorrection) END;
@@ -3350,13 +3344,13 @@ ASSERT(~loaded(instr.dest));
  PROCEDURE Close*;
   VAR i: LONGINT;
  BEGIN
-  FOR i := 0 TO LEN(Instr)-1 DO Instr[i].node := NIL END; (* GC can now collect the nodes *)
+  FOR i := 0 TO LEN(OPIR.Instr)-1 DO OPIR.Instr[i].node := NIL END; (* GC can now collect the nodes *)
   i := 0; WHILE i < LEN(recTab) DO recTab[i] := NIL; INC(i) END
  END Close;
  
 BEGIN
  NEW(ptrTab, 512);  NEW(recTab, 64);  NEW(entry, 128);
- NEW(Instr, 500);  NEW(varConsLink, 100);  NEW(varConsTab, 500);
+ NEW(varConsLink, 100);  NEW(varConsTab, 500);
  NEW(explist, 32);
  JmpConvert [0] := JE; JmpConvert [1] := JNE; JmpConvert [2] := JL; JmpConvert [3] := JLE; JmpConvert [4] := JG;
  JmpConvert [5] := JGE; JmpConvert [6] := JA; JmpConvert [7] := JAE; JmpConvert [8] := JB; JmpConvert [9] := JBE;

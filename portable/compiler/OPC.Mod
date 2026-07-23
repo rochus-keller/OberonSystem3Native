@@ -624,7 +624,7 @@ Intel i386 :
     x.descReg := y.adr
    ELSE
     op := ld;
-    IF x.mode # Con THEN
+    IF (OPTR.Target = OPM.arm32) & (x.mode # Con) THEN
      IF x.typ.form = SInt THEN op := ldbdw
      ELSIF x.typ.form = Int THEN op := ldwdw
      ELSIF (x.typ.form = Char) OR (x.typ.form = Byte) OR (x.typ.form = Bool) THEN op := ldbwu
@@ -637,7 +637,13 @@ Intel i386 :
  
  PROCEDURE NextWord(VAR z: Item; y: Item); (* z := 4[y] *)
  BEGIN  z := y;
-  CASE z.mode OF Reg:  z.adr := y.offs | Var, Abs: INC(z.adr, 4) | RegRel: INC(z.offs, 4)  END;
+  CASE z.mode OF 
+    Reg:  z.adr := y.offs 
+  | Var, Abs: INC(z.adr, 4) 
+  | RegRel: INC(z.offs, 4)
+  | Con:
+    IF z.adr < 0 THEN z.adr := -1 ELSE z.adr := 0 END
+  END;
  END NextWord;
  
  PROCEDURE DeRef* (VAR x: Item);
@@ -1527,7 +1533,7 @@ Intel i386 :
   VAR form: SHORTINT; constAddr: BOOLEAN;
  BEGIN
   IF getfn THEN
-   constAddr := x.mode = Con;
+   constAddr := x.mode = Con;  
    Mem (x); x.typ := z.typ; form := z.typ.form
   ELSE
    constAddr := z.mode = Con;
@@ -1538,8 +1544,8 @@ Intel i386 :
   IF form IN realSet THEN loadf (x)
   ELSE load (x)
   END;
-  OPIR.Instr [pc-1].abs := constAddr & getfn;
-  IF ~getfn THEN Gen0(OPIR.dmb) END; 
+  OPIR.Instr [pc-1].abs := constAddr & getfn;  (* if x is the address and a constant, no fixup *) (* GetPut *)
+  IF ~getfn THEN Gen0(OPIR.dmb) END;  (* ensures the loaded value is visible before we act on it *)
   IF z.mode = VarPar THEN
    loadAdr (z); z.mode := RegRel
   ELSE CompleteSL (z)
@@ -1547,7 +1553,7 @@ Intel i386 :
   IF form IN realSet THEN GenStore (fstore, z, x)
   ELSE GenStore (store, z, x)
   END;
-  OPIR.Instr [pc-1].abs := constAddr & ~getfn;
+  OPIR.Instr [pc-1].abs := constAddr & ~getfn;  (* if z is the address and a constant, no fixup *) (* GetPut *)
   IF getfn THEN Gen0(OPIR.dmb) END
  END SYSgetput;
 

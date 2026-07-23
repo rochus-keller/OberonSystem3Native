@@ -1203,6 +1203,7 @@ MODULE OPP; (** non-portable *)
  PROCEDURE Factor (VAR x: OPT.Node);
   VAR fpar, id: OPT.Object; apar, y: OPT.Node; name: OPS.Name;
  BEGIN
+  id := NIL;
   IF sym < lparen THEN err(13);
    REPEAT OPS.Get(sym) UNTIL sym >= lparen
   END ;
